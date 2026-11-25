@@ -1,0 +1,3125 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aura — Estúdio de Estudo Local-First</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Newsreader', Georgia, serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-quick: cubic-bezier(0.16, 1, 0.3, 1);
+      --sidebar-w: 248px;
+      --topbar-h: 48px;
+      --statusbar-h: 28px;
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --radius-sm: 6px;
+    }
+
+    [data-theme="dark"] {
+      --bg-canvas: #141415; --bg-sidebar: #19191B; --bg-surface: #1F1F22; --bg-elevated: #26262A;
+      --bg-hover: rgba(255,255,255,0.045); --bg-active: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+      --text-primary: #DFDFE4; --text-secondary: #9898A2; --text-muted: #666670;
+      --accent: #D48A5A; --accent-soft: rgba(212,138,90,0.14); --accent-border: rgba(212,138,90,0.44);
+      --highlight-bg: rgba(212,138,90,0.24); --danger: #D96B6B; --danger-soft: rgba(217,107,107,0.14);
+      --success: #6EB08A; --canvas-bg: #18181A; --canvas-grid: rgba(255,255,255,0.08); --canvas-ink: #E4E4E7;
+    }
+
+    [data-theme="paper"] {
+      --bg-canvas: #F9F7F2; --bg-sidebar: #F2EFE7; --bg-surface: #FFFFFF; --bg-elevated: #FFFDF9;
+      --bg-hover: rgba(31,29,26,0.045); --bg-active: rgba(31,29,26,0.08);
+      --border: rgba(31,29,26,0.09); --border-strong: rgba(31,29,26,0.16);
+      --text-primary: #1F1D1A; --text-secondary: #5C574F; --text-muted: #8E887E;
+      --accent: #B45B2A; --accent-soft: rgba(180,91,42,0.11); --accent-border: rgba(180,91,42,0.36);
+      --highlight-bg: rgba(212,138,90,0.28); --danger: #B84242; --danger-soft: rgba(184,66,66,0.12);
+      --success: #3B7D59; --canvas-bg: #FBF9F4; --canvas-grid: rgba(31,29,26,0.11); --canvas-ink: #1F1D1A;
+    }
+
+    [data-theme="light"] {
+      --bg-canvas: #FAFAFA; --bg-sidebar: #F3F3F5; --bg-surface: #FFFFFF; --bg-elevated: #FFFFFF;
+      --bg-hover: rgba(0,0,0,0.04); --bg-active: rgba(0,0,0,0.075);
+      --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.15);
+      --text-primary: #18181B; --text-secondary: #52525B; --text-muted: #8A8A95;
+      --accent: #B45B2A; --accent-soft: rgba(180,91,42,0.1); --accent-border: rgba(180,91,42,0.35);
+      --highlight-bg: rgba(212,138,90,0.25); --danger: #C24141; --danger-soft: rgba(194,65,65,0.12);
+      --success: #3A7D58; --canvas-bg: #FFFFFF; --canvas-grid: rgba(0,0,0,0.09); --canvas-ink: #18181B;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; background: var(--bg-canvas); color: var(--text-primary);
+      font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased; overflow: hidden;
+      transition: background 0.2s var(--ease-enter), color 0.2s var(--ease-enter);
+    }
+    button, input, textarea, select { font-family: inherit; color: inherit; background: transparent; border: none; outline: none; }
+    button { cursor: pointer; transition: background 0.14s var(--ease-quick), border-color 0.14s var(--ease-quick), transform 0.1s var(--ease-quick), color 0.14s; }
+    button:active { transform: scale(0.97); }
+    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .serif { font-family: var(--font-serif); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+    /* Shell */
+    .app-shell { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+    .sidebar {
+      width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--bg-sidebar);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column;
+      transition: width 0.22s var(--ease-enter), min-width 0.22s var(--ease-enter); z-index: 20; user-select: none;
+    }
+    .sidebar.compact { width: 56px; min-width: 56px; }
+    .sidebar-header {
+      height: var(--topbar-h); padding: 0 14px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap; }
+    .brand-mark {
+      width: 24px; height: 24px; min-width: 24px; border-radius: 6px;
+      border: 1px solid var(--accent-border); background: var(--accent-soft); color: var(--accent);
+      display: grid; place-items: center; font-family: var(--font-serif); font-weight: 600; font-size: 14px;
+    }
+    .brand-name { font-weight: 600; letter-spacing: -0.02em; font-size: 14px; }
+    .brand-tag { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    .sidebar.compact .brand, .sidebar.compact .nav-label, .sidebar.compact .nav-group-title,
+    .sidebar.compact .nav-badge, .sidebar.compact .sidebar-meta-text { display: none; }
+    .sidebar.compact .sidebar-header { justify-content: center; padding: 0; }
+
+    .icon-btn { width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--text-secondary); }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .sidebar-nav { flex: 1; padding: 14px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+    .nav-group-title { font-size: 11px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; padding: 0 8px 6px; }
+    .nav-list { display: flex; flex-direction: column; gap: 2px; }
+    .nav-item {
+      position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 13.5px; text-align: left; width: 100%;
+    }
+    .sidebar.compact .nav-item { justify-content: center; padding: 9px 0; }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--bg-active); color: var(--text-primary); font-weight: 500; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--accent); }
+    .nav-badge { margin-left: auto; font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); padding: 1px 6px; border-radius: 99px; border: 1px solid var(--border); }
+    .nav-item.active .nav-badge { color: var(--accent); border-color: var(--accent-border); background: var(--accent-soft); }
+    .sidebar.compact .nav-item:hover::after {
+      content: attr(data-tooltip); position: fixed; left: 64px; background: var(--bg-elevated);
+      color: var(--text-primary); border: 1px solid var(--border-strong); padding: 5px 10px;
+      border-radius: var(--radius-sm); font-size: 12px; white-space: nowrap; z-index: 100; pointer-events: none;
+    }
+
+    .sidebar-footer { padding: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+    .workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+
+    /* Topbar */
+    .topbar {
+      height: var(--topbar-h); min-height: var(--topbar-h); border-bottom: 1px solid var(--border);
+      padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg-canvas);
+    }
+    .breadcrumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .breadcrumbs .crumb-sep { color: var(--text-muted); }
+    .breadcrumbs .crumb-current { color: var(--text-primary); font-weight: 500; }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+    .pill-btn {
+      height: 30px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-secondary); font-size: 12.5px;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .pill-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+    .pill-btn.accent-active { border-color: var(--accent-border); background: var(--accent-soft); color: var(--accent); }
+
+    .pomo-group { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); position: relative; }
+    .pomo-group.accent-active { border-color: var(--accent-border); background: var(--accent-soft); }
+    .pomo-main { height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-secondary); }
+    .pomo-group.accent-active .pomo-main { color: var(--accent); }
+    .pomo-caret { height: 28px; width: 22px; border-left: 1px solid var(--border); display: grid; place-items: center; font-size: 10px; color: var(--text-muted); }
+    .pomo-caret:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+    .kbd { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
+    .theme-switcher { display: inline-flex; padding: 2px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-sidebar); }
+    .theme-opt { height: 24px; padding: 0 8px; border-radius: 4px; font-size: 11.5px; color: var(--text-secondary); }
+    .theme-opt.active { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); }
+
+    /* Main Stage + Bottom Status Bar */
+    .main-stage { flex: 1; overflow: hidden; position: relative; display: flex; }
+    .view-panel { display: none; width: 100%; height: 100%; overflow: hidden; }
+    .view-panel.active { display: flex; }
+
+    .status-bar {
+      height: var(--statusbar-h); min-height: var(--statusbar-h); border-top: 1px solid var(--border);
+      background: var(--bg-sidebar); padding: 0 16px; display: flex; align-items: center;
+      justify-content: space-between; font-size: 11.5px; color: var(--text-muted); user-select: none;
+    }
+    .status-left, .status-right { display: flex; align-items: center; gap: 14px; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); display: inline-block; }
+    .status-btn {
+      font-size: 11.5px; color: var(--text-secondary); padding: 2px 8px; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--bg-surface); display: inline-flex; align-items: center; gap: 5px;
+    }
+    .status-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+
+    /* Zen & Split */
+    body.zen-mode .sidebar, body.zen-mode .topbar, body.zen-mode .status-bar,
+    body.zen-mode .sub-sidebar, body.zen-mode .inspector-pane { display: none !important; }
+    .zen-exit-bar {
+      display: none; position: fixed; top: 14px; right: 18px; z-index: 60; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 99px; background: var(--bg-elevated); border: 1px solid var(--border-strong);
+      font-size: 12px; color: var(--text-secondary); opacity: 0.45; transition: opacity 0.2s;
+    }
+    .zen-exit-bar:hover { opacity: 1; }
+    body.zen-mode .zen-exit-bar { display: flex; }
+
+    .main-stage.split-active #view-reader, .main-stage.split-active #view-notebook { display: flex !important; width: 50%; }
+    .main-stage.split-active #view-reader { border-right: 1px solid var(--border-strong); }
+    .main-stage.split-active #view-reader .sub-sidebar,
+    .main-stage.split-active #view-notebook .sub-sidebar,
+    .main-stage.split-active #view-notebook .inspector-pane { display: none; }
+    .main-stage.split-active #view-mindmap,
+    .main-stage.split-active #view-review,
+    .main-stage.split-active #view-schedule { display: none !important; }
+
+    /* Sub-sidebar */
+    .sub-sidebar { width: 240px; min-width: 240px; border-right: 1px solid var(--border); background: var(--bg-canvas); display: flex; flex-direction: column; overflow: hidden; }
+    .sub-header { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .sub-title { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .sub-search { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .sub-search input { width: 100%; padding: 6px 9px; font-size: 12.5px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-sidebar); }
+    .sub-search input:focus { border-color: var(--accent-border); }
+    .sub-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+    .list-row {
+      position: relative; padding: 9px 28px 9px 10px; border-radius: var(--radius-sm);
+      text-align: left; display: flex; flex-direction: column; gap: 3px; border: 1px solid transparent; width: 100%; cursor: pointer;
+    }
+    .list-row:hover { background: var(--bg-hover); }
+    .list-row.active { background: var(--bg-surface); border-color: var(--border); }
+    .list-row-title { font-size: 13px; font-weight: 500; color: var(--text-primary); line-height: 1.35; }
+    .list-row-meta { font-size: 11.5px; color: var(--text-muted); }
+    .list-row-del {
+      position: absolute; right: 6px; top: 8px; width: 20px; height: 20px; border-radius: 4px;
+      display: grid; place-items: center; font-size: 11px; color: var(--text-muted); opacity: 0;
+    }
+    .list-row:hover .list-row-del { opacity: 1; }
+    .list-row-del:hover { color: var(--danger); background: var(--bg-hover); }
+
+    /* Reader */
+    .reader-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+    .pane-topbar { padding: 8px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--bg-canvas); }
+    .reader-scroll { flex: 1; overflow-y: auto; padding: 36px 32px 96px; display: flex; justify-content: center; }
+    .reader-article { width: 100%; max-width: 68ch; }
+    .article-kicker { font-family: var(--font-mono); font-size: 11.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    .article-title { font-family: var(--font-serif); font-size: 32px; font-weight: 500; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 12px; }
+    .article-meta { font-size: 12.5px; color: var(--text-muted); padding-bottom: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; flex-wrap: wrap; }
+    .article-body { font-family: var(--font-serif); font-size: 18.5px; line-height: 1.78; color: var(--text-primary); }
+    .article-body p { margin-bottom: 1.25em; padding: 4px 6px; border-radius: 6px; transition: background 0.4s; }
+    .article-body p.flash-target { background: var(--accent-soft); }
+    .article-body mark.aura-hl { background: var(--highlight-bg); color: inherit; padding: 1px 3px; border-radius: 3px; border-bottom: 1px solid var(--accent-border); }
+    .highlights-drawer { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .hl-item {
+      padding: 10px 12px; border-left: 2px solid var(--accent); background: var(--bg-sidebar);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-top: 8px; font-size: 13px;
+      color: var(--text-secondary); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+    }
+    .reader-hint { margin-top: 26px; padding: 12px 14px; border-left: 2px solid var(--accent); background: var(--bg-sidebar); font-size: 12.5px; color: var(--text-secondary); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
+    .selection-toolbar {
+      position: fixed; display: none; align-items: center; gap: 2px; padding: 4px;
+      background: var(--bg-elevated); border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md); z-index: 80; box-shadow: 0 8px 24px rgba(0,0,0,0.28);
+    }
+    .selection-toolbar.visible { display: flex; }
+    .sel-action { padding: 6px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: var(--text-primary); white-space: nowrap; }
+    .sel-action:hover { background: var(--bg-hover); }
+    .sel-action.primary { color: var(--accent); }
+
+    /* Notebook (fluido, sem quadrado apertado) */
+    .notebook-center { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; position: relative; }
+    .notebook-toolbar { padding: 8px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .seg-control { display: inline-flex; padding: 2px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-sidebar); }
+    .seg-btn { padding: 4px 11px; border-radius: 4px; font-size: 12px; color: var(--text-secondary); }
+    .seg-btn.active { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); font-weight: 500; }
+
+    .editor-scroll { flex: 1; overflow-y: auto; padding: 28px 42px 84px; }
+    .editor-container { width: 100%; max-width: 82ch; margin: 0 auto; display: flex; flex-direction: column; }
+    .note-title-input { font-family: var(--font-serif); font-size: 32px; font-weight: 500; letter-spacing: -0.02em; width: 100%; margin-bottom: 12px; color: var(--text-primary); }
+    .note-wikilinks-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+    .wikilink-chip { padding: 2px 8px; border-radius: 4px; background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent); font-family: var(--font-mono); font-size: 11.5px; }
+    .wikilink-chip:hover { opacity: 0.85; }
+    .note-body-textarea { width: 100%; min-height: 420px; resize: none; overflow: hidden; font-family: var(--font-serif); font-size: 18.5px; line-height: 1.8; color: var(--text-primary); }
+
+    .note-preview-box { display: none; font-family: var(--font-serif); font-size: 18.5px; line-height: 1.8; color: var(--text-primary); }
+    .note-preview-box.active { display: block; }
+    .note-preview-box p { margin-bottom: 1em; }
+    .note-preview-box blockquote { border-left: 2px solid var(--accent); padding: 6px 14px; margin: 12px 0; background: var(--bg-sidebar); color: var(--text-secondary); border-radius: 0 6px 6px 0; }
+    .citation-pill {
+      display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 4px;
+      font-family: var(--font-mono); font-size: 11.5px; background: var(--accent-soft);
+      border: 1px solid var(--accent-border); color: var(--accent); cursor: pointer;
+    }
+
+    .wikilink-autocomplete {
+      display: none; position: fixed; z-index: 95; width: 260px; max-height: 210px; overflow-y: auto;
+      background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 4px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+    }
+    .wikilink-autocomplete.open { display: block; }
+    .ac-item { width: 100%; padding: 7px 10px; border-radius: 5px; text-align: left; font-size: 12.5px; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; }
+    .ac-item.selected, .ac-item:hover { background: var(--bg-active); color: var(--text-primary); }
+
+    .inline-card-banner {
+      display: none; align-items: center; justify-content: space-between; gap: 10px;
+      margin-top: 16px; padding: 10px 14px; border: 1px solid var(--accent-border);
+      background: var(--accent-soft); border-radius: var(--radius-sm); font-size: 12.5px;
+    }
+    .inline-card-banner.visible { display: flex; }
+
+    /* Canvas Cornell */
+    .canvas-stage { display: none; flex: 1; flex-direction: column; position: relative; background: var(--canvas-bg); overflow: hidden; }
+    .canvas-stage.active { display: flex; }
+    .canvas-floating-bar {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg-elevated);
+      border: 1px solid var(--border-strong); border-radius: 99px; z-index: 15; max-width: calc(100% - 24px); flex-wrap: wrap; justify-content: center;
+    }
+    .tool-chip { height: 28px; padding: 0 10px; border-radius: 99px; font-size: 12px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 5px; }
+    .tool-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .tool-chip.active { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-border); }
+    .color-dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-strong); }
+    .color-dot.active { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .canvas-divider { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+    #freehandCanvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+
+    /* Inspector + Grafo SVG 60fps + Ligar Nós */
+    .inspector-pane { width: 312px; min-width: 312px; border-left: 1px solid var(--border); background: var(--bg-sidebar); display: flex; flex-direction: column; overflow-y: auto; }
+    .inspector-pane.collapsed { display: none; }
+    .inspector-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .inspector-heading { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .graph-actions-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .mini-btn {
+      height: 24px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border);
+      background: var(--bg-canvas); font-size: 11px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px;
+    }
+    .mini-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+    .mini-btn.active { border-color: var(--accent-border); color: var(--accent); background: var(--accent-soft); }
+
+    .local-graph-box { width: 100%; height: 220px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-canvas); overflow: hidden; }
+    #localGraphSvg { touch-action: none; user-select: none; display: block; }
+    .graph-node { cursor: grab; transition: opacity 0.14s; }
+    .graph-node:active { cursor: grabbing; }
+    .graph-node.dimmed { opacity: 0.25; }
+    .graph-node.drop-target circle.node-visible { stroke: var(--accent) !important; stroke-width: 2.6 !important; }
+    .graph-edge { transition: stroke 0.14s, opacity 0.14s; }
+    .graph-edge.dimmed { opacity: 0.18; }
+    .graph-edge.highlighted { stroke: var(--accent) !important; stroke-width: 1.8 !important; }
+    .graph-temp-line { stroke: var(--accent); stroke-width: 1.8; stroke-dasharray: 4 3; pointer-events: none; }
+    .graph-label { font-family: var(--font-ui); font-size: 10px; fill: var(--text-secondary); pointer-events: none; user-select: none; }
+
+    .connect-box { display: none; margin-top: 8px; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-canvas); }
+    .connect-box.open { display: block; }
+    .connect-list { max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+    .connect-opt { width: 100%; padding: 6px 8px; border-radius: 4px; text-align: left; font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; }
+    .connect-opt:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .connect-opt.linked { color: var(--accent); }
+
+    .backlink-item {
+      width: 100%; text-align: left; padding: 8px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--bg-canvas); margin-bottom: 6px; display: flex; flex-direction: column; gap: 3px;
+    }
+    .backlink-item:hover { border-color: var(--border-strong); }
+    .backlink-title { font-size: 12.5px; font-weight: 500; color: var(--text-primary); }
+    .backlink-snippet { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+
+    /* =========================================================
+       MÓDULO: MAPAS MENTAIS (CURVAS BÉZIER + PAN + EDIÇÃO INLINE)
+       ========================================================= */
+    .mindmap-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+    .mindmap-viewport {
+      flex: 1; position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none;
+      background-color: var(--canvas-bg);
+      background-image: radial-gradient(var(--canvas-grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .mindmap-viewport:active { cursor: grabbing; }
+    #mindmapSvg { width: 100%; height: 100%; display: block; }
+    .mm-edge { fill: none; stroke: var(--border-strong); stroke-width: 1.6; }
+    .mm-node-group { cursor: grab; }
+    .mm-node-group:active { cursor: grabbing; }
+    .mm-node-rect { fill: var(--bg-surface); stroke: var(--border-strong); stroke-width: 1.2; rx: 8; ry: 8; transition: stroke 0.14s, fill 0.14s; }
+    .mm-node-group.root .mm-node-rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+    .mm-node-group.selected .mm-node-rect { stroke: var(--accent); stroke-width: 2; }
+    .mm-node-text { font-family: var(--font-ui); font-size: 13px; fill: var(--text-primary); pointer-events: none; dominant-baseline: central; text-anchor: middle; }
+    .mm-node-group.root .mm-node-text { font-weight: 600; }
+
+    .mm-inline-editor {
+      position: absolute; display: none; z-index: 30;
+      padding: 6px 10px; border-radius: 6px; border: 1px solid var(--accent);
+      background: var(--bg-elevated); color: var(--text-primary); font-size: 13px; text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    }
+    .mm-help-pill {
+      position: absolute; bottom: 14px; left: 16px; padding: 6px 10px; border-radius: var(--radius-sm);
+      background: var(--bg-elevated); border: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted); pointer-events: none;
+    }
+
+    /* FSRS */
+    .review-layout { flex: 1; overflow-y: auto; padding: 36px 28px 64px; display: flex; flex-direction: column; align-items: center; }
+    .review-wrap { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 20px; }
+    .fsrs-telemetry {
+      display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+      border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-sidebar);
+      font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; gap: 10px;
+    }
+    .fsrs-metrics { display: flex; gap: 16px; font-family: var(--font-mono); font-size: 12px; }
+    .fsrs-metrics span strong { color: var(--text-primary); font-weight: 500; }
+    .flashcard-stage {
+      border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface);
+      padding: 36px 32px; min-height: 310px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .fc-source-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .fc-source { font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+    .leech-badge { font-family: var(--font-mono); font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(217,107,107,0.35); }
+    .fc-question { font-family: var(--font-serif); font-size: 24px; line-height: 1.45; color: var(--text-primary); }
+    .cloze-blank { display: inline-block; padding: 0 10px; margin: 0 2px; border-radius: 4px; background: var(--accent-soft); border: 1px dashed var(--accent-border); color: var(--accent); font-family: var(--font-mono); font-size: 15px; }
+    .cloze-revealed { padding: 0 5px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+    .fc-answer { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); font-family: var(--font-serif); font-size: 18px; line-height: 1.65; color: var(--text-secondary); display: none; }
+    .fc-answer.revealed { display: block; }
+    .fc-controls { margin-top: 28px; display: flex; flex-direction: column; gap: 10px; }
+    .btn-primary { height: 36px; padding: 0 16px; border-radius: var(--radius-sm); background: var(--accent); color: #FFF; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary:hover { filter: brightness(1.06); }
+    .btn-secondary { height: 34px; padding: 0 13px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-secondary:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+    .btn-danger { height: 34px; padding: 0 13px; border-radius: var(--radius-sm); border: 1px solid rgba(217,107,107,0.35); background: var(--danger-soft); color: var(--danger); font-size: 12.5px; }
+    .fsrs-grade-grid { display: none; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .fsrs-grade-grid.visible { display: grid; }
+    .grade-btn { padding: 10px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-canvas); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .grade-btn:hover { border-color: var(--accent-border); background: var(--accent-soft); }
+    .grade-label { font-size: 12.5px; font-weight: 500; }
+    .grade-interval { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+    /* Agenda, Consistência Interativa (28 dias) & Metas */
+    .schedule-layout { flex: 1; overflow-y: auto; padding: 26px 30px 64px; display: grid; grid-template-columns: 1fr 336px; gap: 26px; align-items: start; }
+    @media (max-width: 1020px) { .schedule-layout { grid-template-columns: 1fr; } }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
+    .section-title { font-size: 15px; font-weight: 600; letter-spacing: -0.015em; }
+
+    .cron-grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-surface); }
+    .cron-grid.seven-days { grid-template-columns: repeat(7, 1fr); }
+    .cron-col { border-right: 1px solid var(--border); min-height: 360px; display: flex; flex-direction: column; min-width: 0; }
+    .cron-col:last-child { border-right: none; }
+    .cron-day-head {
+      padding: 9px 8px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar);
+      font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 4px; color: var(--text-secondary);
+    }
+    .cron-add-day { width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; font-size: 13px; color: var(--text-muted); }
+    .cron-add-day:hover { background: var(--bg-hover); color: var(--accent); }
+    .cron-blocks { padding: 7px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .cron-block {
+      padding: 8px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      border-left: 2px solid var(--accent); background: var(--bg-canvas); font-size: 12px; position: relative; cursor: pointer;
+    }
+    .cron-block:hover { border-color: var(--border-strong); border-left-color: var(--accent); }
+    .cron-block-time { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); margin-bottom: 2px; }
+    .cron-block-del { position: absolute; top: 5px; right: 6px; font-size: 11px; color: var(--text-muted); opacity: 0; }
+    .cron-block:hover .cron-block-del { opacity: 1; }
+    .cron-block-del:hover { color: var(--danger); }
+
+    .heatmap-card { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-sidebar); }
+    .heatmap-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; white-space: nowrap; }
+    .heatmap-grid { display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; margin-top: 12px; }
+    .hm-cell {
+      aspect-ratio: 1; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-canvas);
+      cursor: pointer; padding: 0; transition: transform 0.12s, border-color 0.12s;
+    }
+    .hm-cell:hover { transform: scale(1.12); border-color: var(--border-strong); }
+    .hm-cell[data-level="1"] { background: rgba(212,138,90,0.24); border-color: transparent; }
+    .hm-cell[data-level="2"] { background: rgba(212,138,90,0.52); border-color: transparent; }
+    .hm-cell[data-level="3"] { background: var(--accent); border-color: transparent; }
+    .hm-cell.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .hm-selected-bar {
+      margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+    }
+    .hm-selected-info { font-size: 12px; color: var(--text-secondary); }
+    .hm-selected-info strong { color: var(--text-primary); font-weight: 500; }
+    .hm-selected-controls { display: flex; align-items: center; gap: 4px; }
+
+    .goal-item { padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .goal-top { display: flex; justify-content: space-between; font-size: 13px; }
+    input[type="range"].aura-slider { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 99px; background: var(--border-strong); }
+    input[type="range"].aura-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+    .session-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; color: var(--text-secondary); }
+
+    /* Modals, Dropdowns, Tour, Toast */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.56); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; z-index: 120; padding: 20px; }
+    .modal-backdrop.open { display: flex; }
+    .modal-card { width: 100%; max-width: 520px; background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; }
+    .cmd-modal { max-width: 580px; align-self: flex-start; margin-top: 10vh; }
+    .cmd-input-wrap { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .cmd-input { flex: 1; font-size: 14.5px; color: var(--text-primary); }
+    .cmd-list { max-height: 370px; overflow-y: auto; padding: 6px; }
+    .cmd-group-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 8px 10px 4px; }
+    .cmd-item { width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text-secondary); text-align: left; }
+    .cmd-item.selected, .cmd-item:hover { background: var(--bg-active); color: var(--text-primary); }
+
+    .form-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .form-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+    .form-input { padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-canvas); font-size: 13.5px; }
+    .form-input:focus { border-color: var(--accent-border); }
+
+    .dropdown-wrap { position: relative; }
+    .dropdown-menu {
+      display: none; position: absolute; right: 0; top: calc(100% + 6px); width: 225px;
+      background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+      padding: 5px; z-index: 90; box-shadow: 0 10px 28px rgba(0,0,0,0.3);
+    }
+    .dropdown-menu.open { display: block; }
+    .dropdown-menu.upward { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; }
+    .dropdown-item { width: 100%; padding: 8px 10px; border-radius: 5px; text-align: left; font-size: 12.5px; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; }
+    .dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .tour-overlay { position: fixed; inset: 0; z-index: 150; display: none; pointer-events: auto; }
+    .tour-overlay.active { display: block; }
+    .tour-spotlight { position: fixed; border-radius: var(--radius-md); border: 1px solid var(--accent); box-shadow: 0 0 0 9999px rgba(0,0,0,0.62); pointer-events: none; transition: all 0.28s var(--ease-enter); }
+    .tour-popover { position: fixed; width: 340px; max-width: calc(100vw - 24px); background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; z-index: 160; box-shadow: 0 18px 44px rgba(0,0,0,0.42); transition: top 0.25s var(--ease-enter), left 0.25s var(--ease-enter); }
+    .tour-progress-track { height: 2px; background: var(--border); width: 100%; }
+    .tour-progress-fill { height: 100%; background: var(--accent); transition: width 0.25s var(--ease-enter); }
+    .tour-body { padding: 18px 20px; }
+    .tour-step-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+    .tour-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .tour-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin-bottom: 16px; }
+    .tour-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+    .toast-stack { position: fixed; bottom: 38px; right: 20px; z-index: 140; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--bg-elevated); border: 1px solid var(--border-strong); border-left: 2px solid var(--accent); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12.5px; color: var(--text-primary); display: flex; align-items: center; gap: 12px; }
+    .toast-link { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+
+    .shortcuts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px 24px 24px; }
+    @media (max-width: 600px) { .shortcuts-grid { grid-template-columns: 1fr; } }
+    .shortcut-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+  <input type="file" id="importBackupInput" accept=".json" style="display:none;" onchange="handleImportBackupJSON(event)" />
+
+  <div class="zen-exit-bar">
+    <span class="mono" id="zenTimerDisplay">25:00</span>
+    <button class="pill-btn" onclick="togglePomodoro()" style="height:24px;padding:0 8px;">▶/❚❚</button>
+    <button class="pill-btn" onclick="toggleZenMode()" style="height:24px;padding:0 8px;">Sair do Zen (Ctrl+\)</button>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-mark">A</div>
+          <span class="brand-name">Aura</span>
+          <span class="brand-tag">OS</span>
+        </div>
+        <button class="icon-btn" title="Recolher/Expandir barra lateral" onclick="toggleSidebar()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav" id="tourSidebarNav">
+        <div>
+          <div class="nav-group-title">Fluxo de Estudo</div>
+          <div class="nav-list">
+            <button class="nav-item active" data-view="reader" data-tooltip="1. Leitura & Fontes" onclick="switchView('reader')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              <span class="nav-label">Leitura & Fontes</span>
+              <span class="nav-badge" id="badgeSources">2</span>
+            </button>
+            <button class="nav-item" data-view="notebook" data-tooltip="2. Caderno & Grafo" onclick="switchView('notebook')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span class="nav-label">Caderno & Grafo</span>
+              <span class="nav-badge" id="badgeNotes">4</span>
+            </button>
+            <button class="nav-item" data-view="mindmap" data-tooltip="3. Mapas Mentais" onclick="switchView('mindmap')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="9.5" y1="10.5" x2="5.8" y2="7.2"/><line x1="14.5" y1="10.5" x2="18.2" y2="7.2"/><line x1="9.5" y1="13.5" x2="5.8" y2="16.8"/><line x1="14.5" y1="13.5" x2="18.2" y2="16.8"/></svg>
+              <span class="nav-label">Mapas Mentais</span>
+              <span class="nav-badge" id="badgeMaps">1</span>
+            </button>
+            <button class="nav-item" data-view="review" data-tooltip="4. Revisão FSRS" onclick="switchView('review')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              <span class="nav-label">Revisão FSRS</span>
+              <span class="nav-badge" id="badgeDue">0</span>
+            </button>
+            <button class="nav-item" data-view="schedule" data-tooltip="5. Agenda & Sessões" onclick="switchView('schedule')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Agenda & Sessões</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="nav-group-title">Dados (Sem Lock-in)</div>
+          <div class="nav-list">
+            <button class="nav-item" data-tooltip="Exportar Nota (.md)" onclick="exportActiveNoteMarkdown()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span class="nav-label">Exportar Nota .md</span>
+            </button>
+            <button class="nav-item" data-tooltip="Backup Completo (.json)" onclick="exportBackupJSON()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              <span class="nav-label">Backup .json</span>
+            </button>
+            <button class="nav-item" data-tooltip="Restaurar Backup (.json)" onclick="document.getElementById('importBackupInput').click()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span class="nav-label">Importar .json</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="nav-item" id="sidebarAccountBtn" data-tooltip="Conta / Nuvem" onclick="openAuthModal()" style="width:100%;text-align:left;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="nav-label" id="sidebarAccountLabel">Conta / Entrar</span>
+          <span class="status-dot" id="sidebarSyncDot" style="margin-left:auto;width:6px;height:6px;background:var(--text-muted);display:none;"></span>
+        </button>
+        <div class="dropdown-wrap">
+          <button class="nav-item" data-tooltip="Tutorial & Atalhos" onclick="toggleDropdown('sidebarTutorialMenu', event)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span class="nav-label">? Tutorial</span>
+          </button>
+          <div class="dropdown-menu upward" id="sidebarTutorialMenu">
+            <button class="dropdown-item" onclick="startTour()"><span>Refazer Tour Interativo</span><span class="kbd">6 passos</span></button>
+            <button class="dropdown-item" onclick="openShortcutsModal()"><span>Guia de Atalhos & Fluxo</span><span class="kbd">?</span></button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="breadcrumbs" id="breadcrumbs">
+          <span>Aura</span><span class="crumb-sep">›</span><span class="crumb-current">Leitura & Fontes</span>
+        </div>
+
+        <div class="topbar-actions" id="tourTopbarControls">
+          <div class="pomo-group dropdown-wrap" id="pomodoroGroup">
+            <button class="pomo-main mono" onclick="togglePomodoro()" title="Iniciar/pausar sessão de foco">
+              <span id="pomoDot" style="width:6px;height:6px;border-radius:50%;background:var(--text-muted);"></span>
+              <span id="pomoDisplay">25:00</span>
+            </button>
+            <button class="pomo-caret" title="Ajustar duração do foco" onclick="toggleDropdown('pomoMenu', event)">▾</button>
+            <div class="dropdown-menu" id="pomoMenu" style="width:190px;">
+              <button class="dropdown-item" onclick="setPomodoroPreset(25, 'Pomodoro')"><span>Pomodoro Clássico</span><span class="kbd">25m</span></button>
+              <button class="dropdown-item" onclick="setPomodoroPreset(50, 'Deep Work')"><span>Deep Work</span><span class="kbd">50m</span></button>
+              <button class="dropdown-item" onclick="setPomodoroPreset(5, 'Pausa')"><span>Pausa Curta</span><span class="kbd">05m</span></button>
+              <button class="dropdown-item" onclick="resetPomodoro()"><span>Resetar Timer</span><span class="kbd">↺</span></button>
+            </div>
+          </div>
+
+          <div class="theme-switcher" role="group" aria-label="Tema ergonômico">
+            <button class="theme-opt active" data-theme-btn="dark" onclick="setTheme('dark')">Escuro</button>
+            <button class="theme-opt" data-theme-btn="paper" onclick="setTheme('paper')">Papel</button>
+            <button class="theme-opt" data-theme-btn="light" onclick="setTheme('light')">Claro</button>
+          </div>
+
+          <button class="pill-btn" onclick="toggleZenMode()" title="Modo Zen (Ctrl+\)"><span>Zen</span><span class="kbd">⌘\</span></button>
+
+          <div class="dropdown-wrap">
+            <button class="pill-btn" onclick="toggleDropdown('topTutorialMenu', event)">? Tutorial</button>
+            <div class="dropdown-menu" id="topTutorialMenu">
+              <button class="dropdown-item" onclick="startTour()"><span>Refazer Tour Interativo</span><span class="kbd">6 passos</span></button>
+              <button class="dropdown-item" onclick="openShortcutsModal()"><span>Guia de Atalhos & Fluxo</span><span class="kbd">?</span></button>
+            </div>
+          </div>
+
+          <button class="pill-btn" onclick="openCommandPalette()"><span>Comandos</span><span class="kbd">⌘K</span></button>
+        </div>
+      </header>
+
+      <main class="main-stage" id="mainStage">
+        <!-- VIEW 1: LEITURA & FONTES -->
+        <section class="view-panel active" id="view-reader">
+          <div class="sub-sidebar">
+            <div class="sub-header">
+              <span class="sub-title">Fontes</span>
+              <button class="icon-btn" title="Nova fonte" onclick="openNewSourceModal()">+</button>
+            </div>
+            <div class="sub-search"><input type="text" id="sourceSearchInput" placeholder="Filtrar fontes..." oninput="renderReader()" /></div>
+            <div class="sub-list" id="sourcesList"></div>
+          </div>
+          <div class="reader-main">
+            <div class="pane-topbar">
+              <span class="mono" style="font-size:11.5px;color:var(--text-muted);">LEITURA ATIVA</span>
+              <button class="pill-btn" id="splitToggleBtnReader" onclick="toggleSplitView()"><span>Split: Leitura + Caderno</span></button>
+            </div>
+            <div class="reader-scroll" id="tourReaderPane"><article class="reader-article" id="readerArticle"></article></div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: CADERNO EDITORIAL, VISUALIZAR, CORNELL & GRAFO -->
+        <section class="view-panel" id="view-notebook">
+          <div class="sub-sidebar">
+            <div class="sub-header">
+              <span class="sub-title">Caderno</span>
+              <button class="icon-btn" title="Nova nota" onclick="createNewNote()">+</button>
+            </div>
+            <div class="sub-search"><input type="text" id="noteSearchInput" placeholder="Filtrar notas..." oninput="renderNotebook()" /></div>
+            <div class="sub-list" id="notesList"></div>
+          </div>
+
+          <div class="notebook-center" id="tourNotebookArea">
+            <div class="notebook-toolbar">
+              <div class="seg-control">
+                <button class="seg-btn active" id="btnModeText" onclick="setNotebookMode('text')">Escrever</button>
+                <button class="seg-btn" id="btnModePreview" onclick="setNotebookMode('preview')">Visualizar</button>
+                <button class="seg-btn" id="btnModeCanvas" onclick="setNotebookMode('canvas')">Rascunho (Cornell)</button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span class="mono" style="font-size:11px;color:var(--text-muted);" id="noteWordCount">0 palavras</span>
+                <button class="pill-btn" id="splitToggleBtnNotebook" onclick="toggleSplitView()">Split</button>
+                <button class="pill-btn" onclick="toggleInspector()">Grafo & Vínculos</button>
+              </div>
+            </div>
+
+            <div class="editor-scroll" id="textEditorPane">
+              <div class="editor-container">
+                <input type="text" class="note-title-input" id="noteTitleInput" placeholder="Título da nota..." oninput="handleNoteTitleEdit()" />
+                <div class="note-wikilinks-bar" id="noteWikilinksBar"></div>
+                <textarea class="note-body-textarea" id="noteBodyInput" placeholder="Escreva em fluxo contínuo.&#10;• Digite [[ para conectar notas no Grafo&#10;• Use Pergunta >> Resposta em uma linha para gerar Flashcard FSRS" oninput="handleNoteBodyEdit()" onkeydown="handleEditorKeydown(event)"></textarea>
+                <div class="note-preview-box" id="notePreviewBox"></div>
+                <div class="inline-card-banner" id="inlineCardBanner">
+                  <span id="inlineCardBannerText">0 flashcard(s) inline detectado(s) com <code>&gt;&gt;</code></span>
+                  <button class="btn-secondary" style="height:28px;font-size:12px;" onclick="syncInlineFlashcards()">Sincronizar p/ FSRS</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="canvas-stage" id="canvasStage">
+              <canvas id="freehandCanvas"></canvas>
+              <div class="canvas-floating-bar">
+                <button class="tool-chip active" id="toolPen" onclick="setCanvasTool('pen')">Caneta</button>
+                <button class="tool-chip" id="toolHighlighter" onclick="setCanvasTool('highlighter')">Marca-texto</button>
+                <button class="tool-chip" id="toolEraser" onclick="setCanvasTool('eraser')">Borracha</button>
+                <span class="canvas-divider"></span>
+                <button class="color-dot active" style="background:#D48A5A;" onclick="setCanvasColor('#D48A5A', this)"></button>
+                <button class="color-dot" style="background:var(--canvas-ink);" onclick="setCanvasColor('ink', this)"></button>
+                <button class="color-dot" style="background:#6EB08A;" onclick="setCanvasColor('#6EB08A', this)"></button>
+                <span class="canvas-divider"></span>
+                <select id="paperTemplateSelect" class="tool-chip" style="border:1px solid var(--border);" onchange="setPaperTemplate(this.value)">
+                  <option value="cornell">Papel: Método Cornell</option>
+                  <option value="dots">Papel: Pontilhado</option>
+                  <option value="lined">Papel: Pautado</option>
+                  <option value="blank">Papel: Liso</option>
+                </select>
+                <span class="canvas-divider"></span>
+                <button class="tool-chip" onclick="undoCanvas()">Desfazer</button>
+                <button class="tool-chip" onclick="clearCanvas()">Limpar</button>
+                <button class="tool-chip" onclick="exportCanvasPNG()">PNG</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="inspector-pane" id="inspectorPane">
+            <div class="inspector-section" id="tourLocalGraph">
+              <div class="inspector-heading">
+                <span id="graphHeadingLabel">Grafo Local (1º e 2º grau)</span>
+                <span class="mono" id="graphNodeCount">0 nós</span>
+              </div>
+              <div class="graph-actions-row">
+                <div style="display:flex;gap:4px;">
+                  <button class="mini-btn active" id="btnGraphLocal" onclick="setGraphScope('local')">Local</button>
+                  <button class="mini-btn" id="btnGraphGlobal" onclick="setGraphScope('global')">Global</button>
+                  <button class="mini-btn" id="btnGraphLinkMode" onclick="toggleGraphLinkMode()" title="Arraste de uma bolinha até outra para conectar">Ligar Nós</button>
+                </div>
+                <button class="mini-btn" onclick="toggleConnectBox()">+ Conectar</button>
+              </div>
+              <div class="connect-box" id="connectBox">
+                <input type="text" class="form-input" id="connectSearchInput" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="Buscar ou criar nota..." oninput="renderConnectOptions()" onkeydown="if(event.key==='Enter') connectFromInput()" />
+                <div class="connect-list" id="connectList"></div>
+              </div>
+              <div class="local-graph-box" style="margin-top:8px;">
+                <svg id="localGraphSvg" width="100%" height="100%" viewBox="0 0 274 220"></svg>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                Arraste nós · Shift+arraste (ou Ligar Nós) conecta bolinhas
+              </div>
+            </div>
+
+            <div class="inspector-section">
+              <div class="inspector-heading"><span>Backlinks</span><span class="mono" id="backlinksCount">0</span></div>
+              <div id="backlinksList"></div>
+            </div>
+
+            <div class="inspector-section">
+              <div class="inspector-heading">
+                <span>Flashcards Vinculados</span>
+                <button class="icon-btn" style="width:22px;height:22px;" title="Novo flashcard" onclick="openFlashcardModal()">+</button>
+              </div>
+              <div id="linkedFlashcardsList"></div>
+            </div>
+          </aside>
+        </section>
+
+        <!-- VIEW 3: MAPAS MENTAIS -->
+        <section class="view-panel" id="view-mindmap">
+          <div class="sub-sidebar">
+            <div class="sub-header">
+              <span class="sub-title">Mapas Mentais</span>
+              <button class="icon-btn" title="Novo Mapa Mental" onclick="createNewMindMap()">+</button>
+            </div>
+            <div class="sub-list" id="mindmapsList"></div>
+          </div>
+          <div class="mindmap-main">
+            <div class="pane-topbar" style="flex-wrap:wrap;">
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <button class="pill-btn" onclick="addMindMapChild()">+ Ramo Filho <span class="kbd">Tab</span></button>
+                <button class="pill-btn" onclick="autoLayoutMindMap()">Auto-Organizar</button>
+                <button class="pill-btn" onclick="centerMindMap()">Centralizar</button>
+                <button class="pill-btn" onclick="deleteSelectedMindMapNode()">Remover Ramo</button>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <button class="pill-btn accent-active" onclick="convertMindMapToNote()">Converter em Nota</button>
+              </div>
+            </div>
+            <div class="mindmap-viewport" id="mindmapViewport">
+              <svg id="mindmapSvg"></svg>
+              <input type="text" id="mmInlineEditor" class="mm-inline-editor" />
+              <div class="mm-help-pill">Duplo clique/Enter: editar · Tab: novo ramo · Delete: apagar ramo · Arraste fundo: mover</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 4: REVISÃO FSRS -->
+        <section class="view-panel" id="view-review">
+          <div class="review-layout">
+            <div class="review-wrap" id="tourFsrsArea">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                <div>
+                  <h2 style="font-size:18px;font-weight:600;letter-spacing:-0.02em;">Revisão Espaçada (FSRS)</h2>
+                  <p style="font-size:12.5px;color:var(--text-secondary);">Agendamento real (<code>dueAt</code>), lacunas Cloze <code>{{termo}}</code> e alerta Leech.</p>
+                </div>
+                <button class="btn-secondary" onclick="openFlashcardModal()">+ Novo Card</button>
+              </div>
+              <div class="fsrs-telemetry">
+                <span id="fsrsQueueLabel">Fila de revisão: 0 pendentes</span>
+                <div class="fsrs-metrics">
+                  <span>S: <strong id="metricS">—</strong></span>
+                  <span>D: <strong id="metricD">—</strong></span>
+                  <span>R: <strong id="metricR">—</strong></span>
+                </div>
+              </div>
+              <div class="flashcard-stage" id="flashcardStage"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 5: AGENDA, CONSISTÊNCIA INTERATIVA & SESSÕES -->
+        <section class="view-panel" id="view-schedule">
+          <div class="schedule-layout">
+            <div>
+              <div class="section-head">
+                <div>
+                  <h2 class="section-title">Grade Semanal de Estudo</h2>
+                  <p style="font-size:12.5px;color:var(--text-secondary);">Clique em <strong>+</strong> no dia para agendar ou clique em um bloco para editar.</p>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <div class="seg-control">
+                    <button class="seg-btn active" id="btnWeek5" onclick="setWeekView(5)">Seg–Sex</button>
+                    <button class="seg-btn" id="btnWeek7" onclick="setWeekView(7)">Seg–Dom</button>
+                  </div>
+                  <button class="btn-secondary" onclick="openBlockModal(0)">+ Novo Bloco</button>
+                </div>
+              </div>
+              <div class="cron-grid" id="cronGrid"></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:22px;">
+              <div class="heatmap-card">
+                <div class="heatmap-head">
+                  <span class="sub-title">Consistência (28 dias)</span>
+                  <span class="mono" style="font-size:11px;color:var(--accent);" id="streakLabel">0d seguidos · 0 hoje</span>
+                </div>
+                <div class="heatmap-grid" id="heatmapGrid"></div>
+                <div class="hm-selected-bar">
+                  <div class="hm-selected-info" id="hmSelectedInfo">Selecione um dia</div>
+                  <div class="hm-selected-controls">
+                    <button class="mini-btn" title="Diminuir atividade" onclick="adjustSelectedDay(-1)">−</button>
+                    <button class="mini-btn" title="Aumentar atividade" onclick="adjustSelectedDay(1)">+</button>
+                    <button class="mini-btn" id="hmToggleBtn" onclick="toggleSelectedDay()">Marcar</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="section-head">
+                  <h3 class="section-title">Metas da Semana</h3>
+                  <button class="icon-btn" title="Nova meta" onclick="addNewGoal()">+</button>
+                </div>
+                <div id="goalsList"></div>
+              </div>
+
+              <div>
+                <div class="section-head">
+                  <h3 class="section-title">Histórico de Sessões</h3>
+                  <span class="mono" style="font-size:11.5px;color:var(--text-muted);" id="totalFocusMins">0 min</span>
+                </div>
+                <div id="sessionsList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Barra de Status Inferior -->
+      <footer class="status-bar">
+        <div class="status-left">
+          <span class="mono" id="statusModuleLabel">Leitura & Fontes</span>
+          <span>·</span>
+          <span class="mono" id="statusCountsLabel">0 notas · 0 pendentes</span>
+        </div>
+        <div class="status-right">
+          <button class="status-btn" onclick="openQuickCapture()">+ Captura Rápida</button>
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            <span class="status-dot"></span>
+            <span id="localSaveStatus">IndexedDB ativo</span>
+          </span>
+          <span id="cloudStatusBadge" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid transparent;transition:all 0.14s;" onclick="openAuthModal()" title="Gerenciar Conta & Nuvem">
+            <span class="status-dot" id="cloudDot" style="background:var(--text-muted);"></span>
+            <span id="cloudSyncText">Convidado</span>
+          </span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div class="wikilink-autocomplete" id="wikilinkAutocomplete"></div>
+  <div class="selection-toolbar" id="selectionToolbar">
+    <button class="sel-action" onclick="actionHighlightSelection()">Grifar</button>
+    <button class="sel-action" onclick="actionSendToNotebook()">Enviar p/ Caderno</button>
+    <button class="sel-action primary" onclick="actionCreateCardFromSelection()">+ Flashcard FSRS</button>
+  </div>
+
+  <!-- Modal: Conta & Sincronização em Nuvem (Supabase) -->
+  <div class="modal-backdrop" id="authModalBackdrop" onclick="if(event.target===this) closeModal('authModalBackdrop')">
+    <div class="modal-card" style="padding:24px 26px;max-width:440px;">
+      
+      <!-- ESTADO 1: DESLOGADO (Abas Entrar / Criar Conta) -->
+      <div id="authLoggedOutView">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <h3 style="font-size:16px;font-weight:600;letter-spacing:-0.01em;">Conta Aura Study</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">Sincronize suas notas, mapas e cards no PC e celular</p>
+          </div>
+          <button class="icon-btn" onclick="closeModal('authModalBackdrop')">✕</button>
+        </div>
+
+        <div class="seg-control" style="width:100%;margin-bottom:16px;display:flex;">
+          <button class="seg-btn active" id="tabAuthLogin" style="flex:1;" onclick="setAuthTab('login')">Entrar</button>
+          <button class="seg-btn" id="tabAuthSignup" style="flex:1;" onclick="setAuthTab('signup')">Criar Conta</button>
+        </div>
+
+        <form id="authForm" onsubmit="handleAuthSubmit(event)">
+          <div class="form-field">
+            <label class="form-label">E-mail</label>
+            <input type="email" class="form-input" id="authEmailInput" placeholder="seu-email@exemplo.com" required autocomplete="email" />
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Senha</label>
+            <input type="password" class="form-input" id="authPasswordInput" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="current-password" />
+          </div>
+
+          <div class="form-field" id="authConfirmPassRow" style="display:none;">
+            <label class="form-label">Confirmar Senha</label>
+            <input type="password" class="form-input" id="authPasswordConfirmInput" placeholder="Repita a senha" minlength="6" autocomplete="new-password" />
+          </div>
+
+          <div id="authErrorMsg" style="font-size:12px;color:var(--danger);margin-bottom:12px;display:none;line-height:1.4;"></div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+            <button type="button" class="btn-secondary" style="font-size:12px;" onclick="closeModal('authModalBackdrop')">Continuar Local</button>
+            <button type="submit" class="btn-primary" id="authSubmitBtn">Entrar na Conta</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ESTADO 2: LOGADO (Painel de Status & Sync) -->
+      <div id="authLoggedInView" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <h3 style="font-size:16px;font-weight:600;letter-spacing:-0.01em;">Sincronização em Nuvem</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">Seus dados salvos no IndexedDB e no Supabase</p>
+          </div>
+          <button class="icon-btn" onclick="closeModal('authModalBackdrop')">✕</button>
+        </div>
+
+        <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:34px;height:34px;border-radius:50%;background:var(--accent-soft);border:1px solid var(--accent-border);display:grid;place-items:center;color:var(--accent);font-weight:600;font-size:14px;" id="authAvatarLetter">U</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="authAccountEmail">—</div>
+              <div class="mono" style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="authAccountSyncStatus">● Sincronizado</div>
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-secondary);border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;">
+            <span>Último sync na nuvem:</span>
+            <span class="mono" id="authLastSyncTime">Agora</span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn-primary" style="width:100%;" onclick="manualSyncNow()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Sincronizar Agora (Enviar Alterações)
+          </button>
+          <button class="btn-secondary" style="width:100%;" onclick="manualPullFromCloud()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar Dados da Nuvem
+          </button>
+          <button class="btn-danger" style="width:100%;margin-top:8px;" onclick="handleAuthLogout()">
+            Sair da Conta (Modo Convidado)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Paleta ⌘K -->
+  <div class="modal-backdrop" id="cmdBackdrop" onclick="if(event.target===this) closeCommandPalette()">
+    <div class="modal-card cmd-modal">
+      <div class="cmd-input-wrap">
+        <span style="color:var(--text-muted);">⌘</span>
+        <input type="text" class="cmd-input" id="cmdInput" placeholder="Buscar notas, fontes, mapas, flashcards ou comandos..." oninput="renderCommandList()" />
+        <span class="kbd">ESC</span>
+      </div>
+      <div class="cmd-list" id="cmdList"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Flashcard -->
+  <div class="modal-backdrop" id="fcModalBackdrop" onclick="if(event.target===this) closeModal('fcModalBackdrop')">
+    <div class="modal-card" style="padding:22px 24px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px;">Novo Flashcard FSRS</h3>
+      <div class="form-field"><label class="form-label">Frente (Pergunta ou {{lacuna cloze}})</label><input type="text" class="form-input" id="fcFrontInput" /></div>
+      <div class="form-field"><label class="form-label">Verso (Resposta)</label><textarea class="form-input" id="fcBackInput" rows="4"></textarea></div>
+      <div class="form-field"><label class="form-label">Vínculo (Fonte ou Nota)</label><input type="text" class="form-input" id="fcSourceInput" /></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn-secondary" onclick="closeModal('fcModalBackdrop')">Cancelar</button>
+        <button class="btn-primary" onclick="saveNewFlashcard()">Salvar Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Bloco Agenda (Criar / Editar) -->
+  <div class="modal-backdrop" id="blockModalBackdrop" onclick="if(event.target===this) closeModal('blockModalBackdrop')">
+    <div class="modal-card" style="padding:22px 24px;">
+      <h3 id="blockModalHeading" style="font-size:15px;font-weight:600;margin-bottom:14px;">Agendar Bloco de Estudo</h3>
+      <div class="form-field">
+        <label class="form-label">Dia da Semana</label>
+        <select class="form-input" id="blockDayInput">
+          <option value="0">Segunda-feira</option><option value="1">Terça-feira</option><option value="2">Quarta-feira</option>
+          <option value="3">Quinta-feira</option><option value="4">Sexta-feira</option><option value="5">Sábado</option><option value="6">Domingo</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Horário</label><input type="text" class="form-input mono" id="blockTimeInput" value="19:30 – 21:00" /></div>
+      <div class="form-field"><label class="form-label">Assunto</label><input type="text" class="form-input" id="blockTitleInput" placeholder="Ex.: Revisão FSRS + Modelagem SQL" /></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <button class="btn-danger" id="blockDeleteBtn" style="display:none;" onclick="deleteEditingBlock()">Excluir</button>
+        <div style="display:flex;gap:8px;margin-left:auto;">
+          <button class="btn-secondary" onclick="closeModal('blockModalBackdrop')">Cancelar</button>
+          <button class="btn-primary" onclick="saveScheduleBlock()">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nova Fonte -->
+  <div class="modal-backdrop" id="sourceModalBackdrop" onclick="if(event.target===this) closeModal('sourceModalBackdrop')">
+    <div class="modal-card" style="padding:22px 24px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:14px;">Adicionar Fonte de Estudo</h3>
+      <div class="form-field"><label class="form-label">Título</label><input type="text" class="form-input" id="srcTitleInput" /></div>
+      <div class="form-field"><label class="form-label">Categoria</label><input type="text" class="form-input" id="srcCategoryInput" /></div>
+      <div class="form-field"><label class="form-label">Conteúdo (parágrafos separados por linha em branco)</label><textarea class="form-input" id="srcBodyInput" rows="5"></textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn-secondary" onclick="closeModal('sourceModalBackdrop')">Cancelar</button>
+        <button class="btn-primary" onclick="saveNewSource()">Importar Fonte</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Captura Rápida -->
+  <div class="modal-backdrop" id="quickCaptureBackdrop" onclick="if(event.target===this) closeModal('quickCaptureBackdrop')">
+    <div class="modal-card" style="padding:22px 24px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Captura Rápida</h3>
+      <div class="form-field"><label class="form-label">Ideia, dúvida ou anotação (enviada à nota ativa)</label><textarea class="form-input" id="quickCaptureInput" rows="4" placeholder="Escreva rapidamente sem perder o foco..."></textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn-secondary" onclick="closeModal('quickCaptureBackdrop')">Cancelar</button>
+        <button class="btn-primary" onclick="saveQuickCapture()">Salvar na Nota</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Boas-vindas -->
+  <div class="modal-backdrop" id="welcomeBackdrop">
+    <div class="modal-card" style="padding:28px 28px 24px;">
+      <div class="mono" style="font-size:11px;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">AURA STUDY OS · LOCAL-FIRST</div>
+      <h2 class="serif" style="font-size:28px;font-weight:500;line-height:1.25;margin-bottom:10px;">Um estúdio calmo para pensar, conectar e reter.</h2>
+      <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:20px;">
+        Em vez de abas desconectadas, o Aura une todo o seu ciclo de estudo em um fluxo único:
+        <strong style="color:var(--text-primary);">Ler → Processar → Reter → Planejar</strong>.
+        Tudo salvo localmente no IndexedDB, com resposta instantânea e zero ruído visual.
+      </p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:14px;border-top:1px solid var(--border);">
+        <button class="btn-secondary" onclick="dismissWelcome()">Explorar livremente</button>
+        <button class="btn-primary" onclick="dismissWelcome(); startTour();">Iniciar Tour Interativo (~1 min)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Guia de Atalhos & Fluxo -->
+  <div class="modal-backdrop" id="shortcutsBackdrop" onclick="if(event.target===this) closeModal('shortcutsBackdrop')">
+    <div class="modal-card" style="max-width:640px;">
+      <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="font-size:15px;font-weight:600;">Guia de Atalhos & Fluxo de Estudo</h3>
+        <button class="icon-btn" onclick="closeModal('shortcutsBackdrop')">✕</button>
+      </div>
+      <div class="shortcuts-grid">
+        <div>
+          <div class="sub-title" style="margin-bottom:10px;">Teclado (Power-User)</div>
+          <div class="shortcut-row"><span>Paleta de Comandos</span><span class="kbd">Ctrl + K</span></div>
+          <div class="shortcut-row"><span>Alternar Modo Zen</span><span class="kbd">Ctrl + \</span></div>
+          <div class="shortcut-row"><span>Revelar resposta (FSRS)</span><span class="kbd">Espaço</span></div>
+          <div class="shortcut-row"><span>Avaliar card (Errei → Fácil)</span><span class="kbd">1 / 2 / 3 / 4</span></div>
+          <div class="shortcut-row"><span>Navegar no Tour</span><span class="kbd">← / → / Esc</span></div>
+        </div>
+        <div>
+          <div class="sub-title" style="margin-bottom:10px;">Fluxo Integrado</div>
+          <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.65;">
+            <strong style="color:var(--text-primary);">1. Ler:</strong> Selecione qualquer frase na aba Leitura para grifar, citar no Caderno ou criar Flashcard.<br><br>
+            <strong style="color:var(--text-primary);">2. Processar:</strong> Escreva notas com <code class="mono">[[Wikilinks]]</code> ou estruture ideias em Mapas Mentais.<br><br>
+            <strong style="color:var(--text-primary);">3. Reter & Planejar:</strong> Revise com o algoritmo FSRS e organize seus blocos na Agenda.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay do Tour Interativo -->
+  <div class="tour-overlay" id="tourOverlay">
+    <div class="tour-spotlight" id="tourSpotlight"></div>
+    <div class="tour-popover" id="tourPopover">
+      <div class="tour-progress-track">
+        <div class="tour-progress-fill" id="tourProgressFill" style="width:16.6%;"></div>
+      </div>
+      <div class="tour-body">
+        <div class="tour-step-meta">
+          <span id="tourStepCounter">01 / 06</span>
+          <button style="font-size:11px;color:var(--text-muted);" onclick="endTour()">Pular (Esc)</button>
+        </div>
+        <div class="tour-title" id="tourTitle"></div>
+        <div class="tour-desc" id="tourDesc"></div>
+        <div class="tour-footer">
+          <button class="btn-secondary" id="tourPrevBtn" onclick="prevTourStep()">Anterior</button>
+          <button class="btn-primary" id="tourNextBtn" onclick="nextTourStep()">Próximo →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stack de Toasts -->
+  <div class="toast-stack" id="toastStack"></div>
+
+  <script>
+    /* =========================================================
+       UTILITÁRIOS TEMPORAIS & FORMATAÇÃO
+       ========================================================= */
+    function todayKey(offsetDays = 0) {
+      const d = new Date();
+      d.setDate(d.getDate() - offsetDays);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function formatDatePT(dateKey) {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      return `${weekdays[dt.getDay()]}, ${String(d).padStart(2, '0')} ${months[m - 1]}`;
+    }
+
+    /* =========================================================
+       PERSISTÊNCIA INDEXEDDB (AuraStudyDB)
+       ========================================================= */
+    const DB_NAME = 'AuraStudyDB', DB_STORE = 'workspace';
+    let currentUser = null;
+    function getStorageKey() {
+      return currentUser ? ('state_v5_' + currentUser.id) : 'state_v5_guest';
+    }
+const DEFAULT_STATE = {
+      theme: 'dark',
+      sidebarCompact: false,
+      activeView: 'reader',
+      activeSourceId: 'src-1',
+      activeNoteId: 'note-1',
+      activeMindMapId: 'mm-1',
+      weekDaysCount: 5,
+      tutorialSeen: false,
+      drawings: {},
+      activityLog: {
+        [todayKey(6)]: 2, [todayKey(5)]: 3, [todayKey(3)]: 1, [todayKey(2)]: 2, [todayKey(1)]: 3, [todayKey(0)]: 1
+      },
+      sources: [
+        {
+          id: 'src-1', category: 'Arquitetura & Sistemas',
+          title: 'Arquitetura Local-First: Por que a latência zero muda o raciocínio',
+          meta: 'Leitura de 4 min · Engenharia de Software', highlights: [],
+          paragraphs: [
+            'Em aplicações tradicionais centradas na nuvem, cada clique dispara uma requisição de rede e um indicador de carregamento. Esse microatraso de 200 a 600 milissegundos parece pequeno isoladamente, mas quebra o estado de fluxo cognitivo durante sessões longas de estudo.',
+            'No modelo Local-First, o banco de dados principal vive no dispositivo do usuário (IndexedDB ou SQLite WASM). A interface lê e grava localmente em menos de 16 milissegundos, enquanto a sincronização ocorre em segundo plano sem bloquear a escrita.',
+            'Outra vantagem estrutural é a soberania dos dados: suas notas em Markdown e seu histórico de revisão não ficam presos em servidores proprietários. Mesmo sem conexão com a internet, o ambiente continua 100% operacional.'
+          ]
+        },
+        {
+          id: 'src-2', category: 'Ciência da Memória',
+          title: 'Do sistema Leitner ao FSRS: A matemática da retenção de longo prazo',
+          meta: 'Leitura de 3 min · Aprendizagem Baseada em Evidências', highlights: [],
+          paragraphs: [
+            'O sistema de caixas de Leitner popularizou a repetição espaçada nos anos 1970, mas trata todos os conceitos com intervalos fixos e rígidos. Na prática, cada memória possui uma taxa de decaimento distinta.',
+            'O algoritmo FSRS (Free Spaced Repetition Scheduler) modela três variáveis centrais para cada cartão: Estabilidade (S), que representa o número de dias até a probabilidade de lembrança cair para 90%; Dificuldade (D), que mede a complexidade inerente do item; e Retenção (R), a chance atual de recordação.',
+            'Ao combinar recuperação ativa com intervalos calibrados dinamicamente, o estudante reduz em até 30% o volume de revisões diárias mantendo a mesma taxa de retenção em provas e projetos práticos.'
+          ]
+        }
+      ],
+      notes: [
+        {
+          id: 'note-1', title: 'Arquitetura Local-First', updatedAt: 'Hoje',
+          body: 'O princípio central de [[Latência Zero]] é manter a fonte de verdade no cliente.\n\nBenefícios práticos:\n- Resposta abaixo de 16ms na UI\n- Trabalho offline real com IndexedDB\n- Exportação limpa sem lock-in\n\nRelacionado com [[Algoritmo FSRS]] quando o histórico de revisão sincroniza em background.\n\n[Fonte: Arquitetura Local-First: Por que a latência zero muda o raciocínio §2]'
+        },
+        {
+          id: 'note-2', title: 'Algoritmo FSRS', updatedAt: 'Hoje',
+          body: 'Substitui caixas fixas de Leitner por três parâmetros dinâmicos:\n- Estabilidade (S): dias até retenção cair para 90%\n- Dificuldade (D): escala de 1 a 10\n- Retenção (R): probabilidade atual de acerto\n\nVeja também [[Curva de Esquecimento]] e [[Arquitetura Local-First]].'
+        },
+        {
+          id: 'note-3', title: 'Latência Zero', updatedAt: 'Ontem',
+          body: 'Interações abaixo de 100ms são percebidas como instantâneas pelo cérebro humano.\n\nConecta-se diretamente a [[Arquitetura Local-First]].'
+        },
+        {
+          id: 'note-4', title: 'Curva de Esquecimento', updatedAt: 'Ontem',
+          body: 'Descrita por Ebbinghaus, mostra o declínio exponencial da memória sem revisão ativa. O [[Algoritmo FSRS]] estima o momento exato antes do esquecimento.'
+        }
+      ],
+      mindmaps: [
+        {
+          id: 'mm-1', title: 'Sistema de Estudo',
+          nodes: [
+            { id: 'n-root', parentId: null, text: 'Estudo Eficiente', x: 160, y: 210 },
+            { id: 'n-1', parentId: 'n-root', text: 'Leitura Ativa', x: 400, y: 110 },
+            { id: 'n-2', parentId: 'n-root', text: 'Síntese & Grafo', x: 400, y: 210 },
+            { id: 'n-3', parentId: 'n-root', text: 'Revisão FSRS', x: 400, y: 310 },
+            { id: 'n-4', parentId: 'n-3', text: 'Cloze {{termo}}', x: 630, y: 280 },
+            { id: 'n-5', parentId: 'n-3', text: 'Alerta Leech', x: 630, y: 345 }
+          ]
+        }
+      ],
+      flashcards: [
+        {
+          id: 'fc-1', front: 'No algoritmo FSRS, a variável {{Estabilidade (S)}} mede o número de dias até a retenção cair para 90%.',
+          back: 'Quanto maior a Estabilidade (S), mais lentamente aquela memória decai.', source: 'Algoritmo FSRS',
+          stability: 4.2, difficulty: 4.8, retrievability: 89, lapses: 0, dueAt: Date.now() - 1000
+        },
+        {
+          id: 'fc-2', front: 'Qual é o principal ganho cognitivo da arquitetura Local-First em apps de estudo?',
+          back: 'Eliminar microatrasos de rede (< 16ms) que interrompem o estado de fluxo, além de garantir uso offline.', source: 'Arquitetura Local-First',
+          stability: 6.5, difficulty: 3.6, retrievability: 92, lapses: 0, dueAt: Date.now() - 1000
+        },
+        {
+          id: 'fc-3', front: 'Por que texto branco puro (#FFF) sobre preto absoluto cansa a vista em leituras longas?',
+          back: 'Pelo efeito óptico de halação. Tons foscos ou modo Papel/Sépia evitam essa fadiga.', source: 'Ergonomia Editorial',
+          stability: 2.8, difficulty: 5.2, retrievability: 84, lapses: 4, dueAt: Date.now() - 1000
+        }
+      ],
+      schedule: [
+        { id: 'b-1', day: 0, time: '19:30 – 21:00', title: 'Leitura: Arquitetura Local-First' },
+        { id: 'b-2', day: 1, time: '20:00 – 21:15', title: 'Revisão FSRS + Notas' },
+        { id: 'b-3', day: 2, time: '19:30 – 21:00', title: 'Ciência de Dados: Probabilidade' },
+        { id: 'b-4', day: 3, time: '20:00 – 21:30', title: 'Prática: SQL + Modelagem' },
+        { id: 'b-5', day: 4, time: '19:00 – 20:00', title: 'Síntese Semanal (Cornell)' }
+      ],
+      goals: [
+        { id: 'g-1', title: 'Concluir módulo de Estatística Descritiva', progress: 65 },
+        { id: 'g-2', title: 'Zerar fila FSRS por 5 dias seguidos', progress: 80 },
+        { id: 'g-3', title: 'Mapear 10 notas conectadas no Grafo', progress: 40 }
+      ],
+      sessions: [
+        { date: 'Hoje · 19:20', label: 'Foco profundo — Leitura & Caderno', mins: 25 },
+        { date: 'Ontem · 20:10', label: 'Revisão FSRS — 14 cards', mins: 25 }
+      ]
+    };
+
+    let state = structuredClone(DEFAULT_STATE);
+    let idbHandle = null, splitActive = false;
+
+    function openAuraDB() {
+      return new Promise(resolve => {
+        if (!window.indexedDB) return resolve(null);
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(DB_STORE)) req.result.createObjectStore(DB_STORE); };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    async function loadStateFromDB() {
+      idbHandle = await openAuraDB();
+      const k = getStorageKey();
+      if (idbHandle) {
+        const loaded = await new Promise(resolve => {
+          const req = idbHandle.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(k);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+        if (loaded) return normalizeState(loaded);
+        if (!currentUser) {
+          const legacy = await new Promise(resolve => {
+            const req = idbHandle.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get('state_v5');
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+          });
+          if (legacy) return normalizeState(legacy);
+        }
+      }
+      try {
+        const raw = localStorage.getItem(k) || localStorage.getItem('aura_study_os_v5') || localStorage.getItem('aura_study_os_v3');
+        if (raw) return normalizeState(JSON.parse(raw));
+      } catch {}
+      return structuredClone(DEFAULT_STATE);
+    }
+
+    function normalizeState(parsed) {
+      const m = {
+        ...structuredClone(DEFAULT_STATE), ...parsed,
+        drawings: parsed.drawings || {},
+        mindmaps: parsed.mindmaps?.length ? parsed.mindmaps : structuredClone(DEFAULT_STATE.mindmaps),
+        activityLog: parsed.activityLog || structuredClone(DEFAULT_STATE.activityLog)
+      };
+      m.sources = (m.sources || []).map(s => ({ ...s, highlights: s.highlights || [] }));
+      m.flashcards = (m.flashcards || []).map(c => ({
+        ...c, lapses: c.lapses || 0,
+        dueAt: typeof c.dueAt === 'number' ? c.dueAt : (c.due === false ? Date.now() + 86400000 : Date.now() - 1000)
+      }));
+      return m;
+    }
+
+    function saveState(skipCloud = false) {
+      const el = document.getElementById('localSaveStatus');
+      const k = getStorageKey();
+      if (idbHandle) {
+        try {
+          idbHandle.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(state, k);
+          if (el) {
+            el.textContent = 'Salvo (IndexedDB)';
+            clearTimeout(window._saveTimer);
+            window._saveTimer = setTimeout(() => { el.textContent = 'IndexedDB ativo'; }, 1400);
+          }
+          if (!skipCloud && currentUser) scheduleCloudSync();
+          return;
+        } catch {}
+      }
+      try { localStorage.setItem(k, JSON.stringify(state)); } catch {}
+      if (!skipCloud && currentUser) scheduleCloudSync();
+    }
+
+    function logDailyActivity(weight = 1) {
+      const k = todayKey(0);
+      state.activityLog[k] = (state.activityLog[k] || 0) + weight;
+      saveState();
+      if (state.activeView === 'schedule') renderHeatmap();
+    }
+
+    function escapeHtml(str = '') {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /* =========================================================
+       NAVEGAÇÃO, TEMAS, ZEN, SPLIT & BARRA DE STATUS
+       ========================================================= */
+    function setTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === theme));
+      saveState();
+      if (notebookMode === 'canvas') redrawCanvas();
+    }
+
+    function toggleSidebar() {
+      state.sidebarCompact = !state.sidebarCompact;
+      document.getElementById('sidebar').classList.toggle('compact', state.sidebarCompact);
+      saveState();
+      if (notebookMode === 'canvas') setTimeout(resizeCanvas, 260);
+    }
+
+    function toggleZenMode() {
+      document.body.classList.toggle('zen-mode');
+      showToast(document.body.classList.contains('zen-mode') ? 'Modo Zen ativado (Ctrl+\\ para sair)' : 'Modo Zen desativado');
+      if (notebookMode === 'canvas') setTimeout(resizeCanvas, 100);
+    }
+
+    function toggleSplitView() {
+      splitActive = !splitActive;
+      document.getElementById('mainStage').classList.toggle('split-active', splitActive);
+      document.getElementById('splitToggleBtnReader').classList.toggle('accent-active', splitActive);
+      document.getElementById('splitToggleBtnNotebook').classList.toggle('accent-active', splitActive);
+      if (splitActive) { renderReader(); renderNotebook(); if (notebookMode === 'canvas') setTimeout(resizeCanvas, 60); }
+      else switchView(state.activeView);
+    }
+
+    function switchView(view) {
+      if (splitActive && !['reader', 'notebook'].includes(view)) {
+        splitActive = false;
+        document.getElementById('mainStage').classList.remove('split-active');
+        document.getElementById('splitToggleBtnReader').classList.remove('accent-active');
+        document.getElementById('splitToggleBtnNotebook').classList.remove('accent-active');
+      }
+      state.activeView = view;
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`view-${view}`)?.classList.add('active');
+      document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      updateBreadcrumbs();
+      updateStatusBar();
+      saveState();
+
+      if (view === 'reader') renderReader();
+      if (view === 'notebook') { renderNotebook(); if (notebookMode === 'canvas') setTimeout(resizeCanvas, 40); }
+      if (view === 'mindmap') renderMindMapView();
+      if (view === 'review') renderReview();
+      if (view === 'schedule') renderSchedule();
+    }
+
+    function updateBreadcrumbs() {
+      const map = {
+        reader: ['Leitura & Fontes', state.sources.find(s => s.id === state.activeSourceId)?.title || ''],
+        notebook: ['Caderno & Grafo', state.notes.find(n => n.id === state.activeNoteId)?.title || 'Sem título'],
+        mindmap: ['Mapas Mentais', state.mindmaps.find(m => m.id === state.activeMindMapId)?.title || ''],
+        review: ['Revisão FSRS', `${getDueCards().length} pendentes`],
+        schedule: ['Agenda & Sessões', 'Semana atual']
+      };
+      const [sec, det] = map[state.activeView] || ['Aura', ''];
+      document.getElementById('breadcrumbs').innerHTML = `<span>Aura</span><span class="crumb-sep">›</span><span>${escapeHtml(sec)}</span>${det ? `<span class="crumb-sep">›</span><span class="crumb-current">${escapeHtml(det)}</span>` : ''}`;
+      document.getElementById('statusModuleLabel').textContent = sec;
+    }
+
+    function updateBadges() {
+      document.getElementById('badgeSources').textContent = state.sources.length;
+      document.getElementById('badgeNotes').textContent = state.notes.length;
+      document.getElementById('badgeMaps').textContent = state.mindmaps.length;
+      document.getElementById('badgeDue').textContent = getDueCards().length;
+      updateStatusBar();
+    }
+
+    function updateStatusBar() {
+      document.getElementById('statusCountsLabel').textContent = `${state.notes.length} notas · ${state.mindmaps.length} mapa(s) · ${getDueCards().length} pendentes FSRS`;
+    }
+
+    /* =========================================================
+       MÓDULO 1: LEITURA & FONTES
+       ========================================================= */
+    let currentSelectedText = '', currentSelectedParagraphIdx = 0;
+
+    function renderReader() {
+      const q = (document.getElementById('sourceSearchInput')?.value || '').toLowerCase().trim();
+      const filtered = state.sources.filter(s => s.title.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+      document.getElementById('sourcesList').innerHTML = filtered.map(src => `
+        <div class="list-row ${src.id === state.activeSourceId ? 'active' : ''}" onclick="selectSource('${src.id}')">
+          <span class="list-row-title">${escapeHtml(src.title)}</span>
+          <span class="list-row-meta">${escapeHtml(src.category)}</span>
+          ${state.sources.length > 1 ? `<button class="list-row-del" onclick="deleteSource('${src.id}', event)">✕</button>` : ''}
+        </div>`).join('');
+
+      const active = state.sources.find(s => s.id === state.activeSourceId) || state.sources[0];
+      if (!active) return;
+
+      const hlHtml = (active.highlights || []).length
+        ? `<div class="highlights-drawer"><div class="sub-title">Grifos desta fonte (${active.highlights.length})</div>${active.highlights.map(h => `
+            <div class="hl-item"><span>"${escapeHtml(h.text)}" <span class="mono" style="color:var(--accent);font-size:11px;">§${h.pIdx + 1}</span></span>
+            <button class="mini-btn" onclick="jumpToParagraph(${h.pIdx})">Ir</button></div>`).join('')}</div>`
+        : '';
+
+      document.getElementById('readerArticle').innerHTML = `
+        <div class="article-kicker">${escapeHtml(active.category)}</div>
+        <h1 class="article-title">${escapeHtml(active.title)}</h1>
+        <div class="article-meta"><span>${escapeHtml(active.meta)}</span><span>·</span><span>Selecione trechos para grifar, citar ou gerar Flashcard</span></div>
+        <div class="article-body" id="articleBody">${active.paragraphs.map((p, idx) => `<p data-p-idx="${idx}">${p}</p>`).join('')}</div>
+        ${hlHtml}
+        <div class="reader-hint"><strong>Fluxo conectado:</strong> selecione qualquer frase acima para grifar, enviar citação clicável <code>[Fonte: Título §N]</code> ao Caderno ou gerar Flashcard FSRS.</div>`;
+      updateBreadcrumbs(); updateBadges();
+    }
+
+    function selectSource(id) { state.activeSourceId = id; saveState(); renderReader(); }
+    function jumpToSourceCitation(title, pNum) {
+      const src = state.sources.find(s => s.title.toLowerCase() === title.toLowerCase());
+      if (!src) return showToast('Fonte original não encontrada');
+      state.activeSourceId = src.id;
+      if (!splitActive) switchView('reader'); else renderReader();
+      setTimeout(() => jumpToParagraph(Math.max(0, Number(pNum) - 1)), 80);
+    }
+    function jumpToParagraph(idx) {
+      const p = document.querySelector(`#articleBody p[data-p-idx="${idx}"]`);
+      if (!p) return;
+      p.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      p.classList.add('flash-target'); setTimeout(() => p.classList.remove('flash-target'), 1600);
+    }
+    function deleteSource(id, e) {
+      e.stopPropagation();
+      if (state.sources.length <= 1) return;
+      state.sources = state.sources.filter(s => s.id !== id);
+      if (state.activeSourceId === id) state.activeSourceId = state.sources[0].id;
+      saveState(); renderReader(); showToast('Fonte removida');
+    }
+
+    document.addEventListener('mouseup', (e) => {
+      const tb = document.getElementById('selectionToolbar');
+      if (tb.contains(e.target)) return;
+      const body = document.getElementById('articleBody');
+      const sel = window.getSelection();
+      const text = sel ? sel.toString().trim() : '';
+      if ((state.activeView === 'reader' || splitActive) && body && text.length > 3 && body.contains(sel.anchorNode)) {
+        currentSelectedText = text;
+        const pNode = sel.anchorNode.nodeType === 1 ? sel.anchorNode.closest('p') : sel.anchorNode.parentElement?.closest('p');
+        currentSelectedParagraphIdx = pNode ? Number(pNode.dataset.pIdx || 0) : 0;
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        tb.style.left = `${Math.max(12, Math.min(window.innerWidth - 320, rect.left + rect.width / 2 - 145))}px`;
+        tb.style.top = `${Math.max(12, rect.top - 48)}px`;
+        tb.classList.add('visible');
+      } else tb.classList.remove('visible');
+    });
+
+    function safeHighlightHtml(htmlStr, targetText) {
+      const esc = escapeHtml(targetText);
+      const parts = htmlStr.split(/(<[^>]+>)/g);
+      let inMark = false, done = false;
+      return parts.map(part => {
+        if (part.startsWith('<mark')) { inMark = true; return part; }
+        if (part.startsWith('</mark')) { inMark = false; return part; }
+        if (part.startsWith('<') || inMark || done) return part;
+        const idx = part.indexOf(esc);
+        if (idx !== -1) { done = true; return part.slice(0, idx) + `<mark class="aura-hl">${esc}</mark>` + part.slice(idx + esc.length); }
+        return part;
+      }).join('');
+    }
+
+    function actionHighlightSelection() {
+      const active = state.sources.find(s => s.id === state.activeSourceId);
+      if (!active || !currentSelectedText) return;
+      active.paragraphs = active.paragraphs.map(p => safeHighlightHtml(p, currentSelectedText));
+      active.highlights = active.highlights || [];
+      if (!active.highlights.some(h => h.text === currentSelectedText)) active.highlights.push({ text: currentSelectedText, pIdx: currentSelectedParagraphIdx });
+      document.getElementById('selectionToolbar').classList.remove('visible');
+      window.getSelection()?.removeAllRanges();
+      logDailyActivity(1); saveState(); renderReader(); showToast('Trecho grifado');
+    }
+
+    function actionSendToNotebook() {
+      const src = state.sources.find(s => s.id === state.activeSourceId);
+      const note = state.notes.find(n => n.id === state.activeNoteId) || state.notes[0];
+      if (!note || !currentSelectedText) return;
+      note.body += `\n\n> "${currentSelectedText}"\n[Fonte: ${src ? src.title : 'Leitura'} §${currentSelectedParagraphIdx + 1}]`;
+      note.updatedAt = 'Agora'; saveState();
+      if (splitActive) renderNotebook();
+      document.getElementById('selectionToolbar').classList.remove('visible');
+      window.getSelection()?.removeAllRanges();
+      showToast(`Enviado para "${note.title}"`, splitActive ? '' : 'Abrir nota', () => switchView('notebook'));
+    }
+
+    function actionCreateCardFromSelection() {
+      const src = state.sources.find(s => s.id === state.activeSourceId);
+      document.getElementById('selectionToolbar').classList.remove('visible');
+      openFlashcardModal('', currentSelectedText, src ? src.title : '');
+    }
+
+    function openNewSourceModal() {
+      ['srcTitleInput', 'srcCategoryInput', 'srcBodyInput'].forEach(id => document.getElementById(id).value = '');
+      openModal('sourceModalBackdrop');
+    }
+    function saveNewSource() {
+      const title = document.getElementById('srcTitleInput').value.trim();
+      const category = document.getElementById('srcCategoryInput').value.trim() || 'Estudo Geral';
+      const raw = document.getElementById('srcBodyInput').value.trim();
+      if (!title || !raw) return showToast('Preencha título e conteúdo');
+      const paragraphs = raw.split(/\n\s*\n/).map(p => escapeHtml(p.trim())).filter(Boolean);
+      const ns = { id: 'src-' + Date.now(), category, title, meta: `Importado agora · ${paragraphs.length} parágrafo(s)`, highlights: [], paragraphs };
+      state.sources.unshift(ns); state.activeSourceId = ns.id;
+      saveState(); closeModal('sourceModalBackdrop'); renderReader(); showToast('Fonte adicionada');
+    }
+
+    /* =========================================================
+       MÓDULO 2: CADERNO + GRAFO SVG 60FPS + LIGAR NÓS
+       ========================================================= */
+    let notebookMode = 'text', graphScope = 'local', graphLinkMode = false;
+    let graphNodesCache = { nodes: [], edges: [] };
+    let draggingNode = null, linkingFromNode = null, dragMoved = false;
+    let acOpen = false, acItems = [], acIndex = 0;
+
+    function autoGrowTextarea() {
+      const ta = document.getElementById('noteBodyInput');
+      if (!ta) return;
+      ta.style.height = 'auto';
+      ta.style.height = Math.max(420, ta.scrollHeight) + 'px';
+    }
+
+    function renderNotePreview(note) {
+      const html = (note.body || '').split('\n').map(line => {
+        let safe = escapeHtml(line);
+        safe = safe.replace(/\[Fonte:\s*([^\]]+?)\s*§(\d+)\]/g, (_, title, pNum) =>
+          `<button class="citation-pill" data-cite-title="${title}" data-cite-p="${pNum}">§${pNum} · ${title.slice(0, 32)}${title.length > 32 ? '…' : ''}</button>`);
+        safe = safe.replace(/\[\[([^\]]+)\]\]/g, (_, wl) => `<button class="wikilink-chip" data-wl="${wl}">[[${wl}]]</button>`);
+        if (line.trim().startsWith('>')) return `<blockquote>${safe.replace(/^&gt;\s?/, '')}</blockquote>`;
+        return line.trim() ? `<p>${safe}</p>` : '';
+      }).join('');
+      document.getElementById('notePreviewBox').innerHTML = html || `<p style="color:var(--text-muted);">Nota vazia.</p>`;
+    }
+
+    document.getElementById('notePreviewBox').addEventListener('click', (e) => {
+      const c = e.target.closest('.citation-pill');
+      if (c) return jumpToSourceCitation(c.dataset.citeTitle, c.dataset.citeP);
+      const w = e.target.closest('.wikilink-chip');
+      if (w) openOrCreateWikilink(w.dataset.wl);
+    });
+
+    function renderNotebook() {
+      const q = (document.getElementById('noteSearchInput')?.value || '').toLowerCase().trim();
+      const filtered = state.notes.filter(n => (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q));
+      document.getElementById('notesList').innerHTML = filtered.map(n => `
+        <div class="list-row ${n.id === state.activeNoteId ? 'active' : ''}" onclick="selectNote('${n.id}')">
+          <span class="list-row-title">${escapeHtml(n.title || 'Sem título')}</span>
+          <span class="list-row-meta">${escapeHtml(n.updatedAt || 'Local')}</span>
+          ${state.notes.length > 1 ? `<button class="list-row-del" onclick="deleteNote('${n.id}', event)">✕</button>` : ''}
+        </div>`).join('');
+
+      const note = state.notes.find(n => n.id === state.activeNoteId) || state.notes[0];
+      if (!note) return;
+      document.getElementById('noteTitleInput').value = note.title;
+      document.getElementById('noteBodyInput').value = note.body;
+      autoGrowTextarea();
+      updateNoteMetadata(note);
+      if (notebookMode === 'preview') renderNotePreview(note);
+      renderGraph(note);
+      renderBacklinks(note);
+      renderLinkedFlashcards(note);
+      if (document.getElementById('connectBox').classList.contains('open')) renderConnectOptions();
+      if (notebookMode === 'canvas') loadNoteStrokes();
+      updateBreadcrumbs(); updateBadges();
+    }
+
+    function selectNote(id) { state.activeNoteId = id; saveState(); renderNotebook(); }
+    function createNewNote(prefillTitle = '', prefillBody = '') {
+      const note = { id: 'note-' + Date.now(), title: prefillTitle || 'Nova Nota', body: prefillBody, updatedAt: 'Agora' };
+      state.notes.unshift(note); state.activeNoteId = note.id; saveState(); renderNotebook();
+      if (state.activeView !== 'notebook' && !splitActive) switchView('notebook');
+      setNotebookMode('text'); document.getElementById('noteTitleInput').focus();
+    }
+    function deleteNote(id, e) {
+      e.stopPropagation();
+      if (state.notes.length <= 1) return;
+      state.notes = state.notes.filter(n => n.id !== id);
+      delete state.drawings[id];
+      if (state.activeNoteId === id) state.activeNoteId = state.notes[0].id;
+      saveState(); renderNotebook(); showToast('Nota removida');
+    }
+
+    function handleNoteTitleEdit() {
+      const note = state.notes.find(n => n.id === state.activeNoteId);
+      if (!note) return;
+      const oldT = note.title, newT = document.getElementById('noteTitleInput').value;
+      note.title = newT; note.updatedAt = 'Agora';
+      if (oldT && newT && oldT !== newT) {
+        const re = new RegExp(`\\[\\[${oldT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]`, 'gi');
+        state.notes.forEach(o => { if (o.id !== note.id && re.test(o.body)) o.body = o.body.replace(re, `[[${newT}]]`); });
+      }
+      saveState(); renderGraph(note); renderBacklinks(note); updateBreadcrumbs();
+      const row = document.querySelector('#notesList .list-row.active .list-row-title');
+      if (row) row.textContent = note.title || 'Sem título';
+    }
+
+    function handleNoteBodyEdit() {
+      const note = state.notes.find(n => n.id === state.activeNoteId);
+      if (!note) return;
+      note.body = document.getElementById('noteBodyInput').value; note.updatedAt = 'Agora';
+      autoGrowTextarea(); saveState(); updateNoteMetadata(note); renderGraph(note); renderBacklinks(note); checkWikilinkAutocomplete();
+    }
+
+    function extractWikilinks(text) {
+      return [...new Set([...(text || '').matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1].trim()).filter(Boolean))];
+    }
+
+    function extractInlineCards(text) {
+      return (text || '').split('\n').map(l => l.trim()).filter(l => l.includes('>>')).map(l => {
+        const [front, ...rest] = l.split('>>');
+        return { front: front.replace(/^[-*•]\s*/, '').trim(), back: rest.join('>>').trim() };
+      }).filter(c => c.front && c.back);
+    }
+
+    function syncInlineFlashcards() {
+      const note = state.notes.find(n => n.id === state.activeNoteId);
+      if (!note) return;
+      let added = 0;
+      extractInlineCards(note.body).forEach(item => {
+        if (!state.flashcards.some(fc => fc.front.toLowerCase() === item.front.toLowerCase())) {
+          state.flashcards.unshift({
+            id: 'fc-' + Date.now() + Math.random().toString(16).slice(2, 6),
+            front: item.front, back: item.back, source: note.title || 'Caderno',
+            stability: 1.5, difficulty: 5.0, retrievability: 90, lapses: 0, dueAt: Date.now() - 1000
+          });
+          added++;
+        }
+      });
+      saveState(); updateBadges(); renderLinkedFlashcards(note);
+      showToast(added ? `${added} flashcard(s) sincronizado(s)` : 'Cards inline já sincronizados', 'Revisar', () => switchView('review'));
+    }
+
+    function updateNoteMetadata(note) {
+      const words = (note.body || '').trim().split(/\s+/).filter(Boolean).length;
+      document.getElementById('noteWordCount').textContent = `${words} ${words === 1 ? 'palavra' : 'palavras'}`;
+      const links = extractWikilinks(note.body);
+      document.getElementById('noteWikilinksBar').innerHTML = links.length
+        ? `<span>Conexões:</span>` + links.map(l => `<button class="wikilink-chip" data-bar-wl="${escapeHtml(l)}">[[${escapeHtml(l)}]]</button>`).join('')
+        : `<span>Digite <code class="mono">[[</code> para conectar notas ou arraste com <strong>Ligar Nós</strong> no Grafo.</span>`;
+
+      const inlineCards = extractInlineCards(note.body);
+      const banner = document.getElementById('inlineCardBanner');
+      if (inlineCards.length) {
+        document.getElementById('inlineCardBannerText').innerHTML = `<strong>${inlineCards.length}</strong> card(s) inline detectado(s) com <code class="mono">&gt;&gt;</code>`;
+        banner.classList.add('visible');
+      } else banner.classList.remove('visible');
+    }
+
+    document.getElementById('noteWikilinksBar').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-bar-wl]');
+      if (b) openOrCreateWikilink(b.dataset.barWl);
+    });
+
+    function checkWikilinkAutocomplete() {
+      const ta = document.getElementById('noteBodyInput');
+      const match = ta.value.slice(0, ta.selectionStart).match(/\[\[([^\]\n]*)$/);
+      const pop = document.getElementById('wikilinkAutocomplete');
+      if (!match) { acOpen = false; pop.classList.remove('open'); return; }
+      const q = match[1].toLowerCase().trim();
+      acItems = state.notes.filter(n => n.id !== state.activeNoteId && n.title.toLowerCase().includes(q)).map(n => ({ title: n.title, isNew: false }));
+      if (q && !acItems.some(i => i.title.toLowerCase() === q)) acItems.push({ title: match[1].trim(), isNew: true });
+      if (!acItems.length) { acOpen = false; pop.classList.remove('open'); return; }
+      acOpen = true; acIndex = 0;
+      const r = ta.getBoundingClientRect();
+      pop.style.left = `${Math.min(window.innerWidth - 280, r.left + 20)}px`;
+      pop.style.top = `${Math.max(60, Math.min(window.innerHeight - 230, r.top + 40))}px`;
+      renderAutocompleteList(); pop.classList.add('open');
+    }
+    function renderAutocompleteList() {
+      document.getElementById('wikilinkAutocomplete').innerHTML = acItems.map((item, idx) => `
+        <button class="ac-item ${idx === acIndex ? 'selected' : ''}" onmousedown="event.preventDefault(); applyWikilinkAutocomplete(${idx})">
+          <span>${escapeHtml(item.title)}</span><span class="kbd">${item.isNew ? 'Criar' : 'Conectar'}</span>
+        </button>`).join('');
+    }
+    function applyWikilinkAutocomplete(idx) {
+      const item = acItems[idx]; if (!item) return;
+      const ta = document.getElementById('noteBodyInput'), pos = ta.selectionStart;
+      const rep = ta.value.slice(0, pos).replace(/\[\[([^\]\n]*)$/, `[[${item.title}]]`);
+      ta.value = rep + ta.value.slice(pos); ta.focus(); ta.selectionStart = ta.selectionEnd = rep.length;
+      if (item.isNew && !state.notes.some(n => n.title.toLowerCase() === item.title.toLowerCase())) {
+        state.notes.push({ id: 'note-' + Date.now(), title: item.title, body: '', updatedAt: 'Agora' });
+      }
+      acOpen = false; document.getElementById('wikilinkAutocomplete').classList.remove('open');
+      handleNoteBodyEdit(); showToast(`Conectado a [[${item.title}]]`);
+    }
+    function handleEditorKeydown(e) {
+      if (!acOpen) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); acIndex = (acIndex + 1) % acItems.length; renderAutocompleteList(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); acIndex = (acIndex - 1 + acItems.length) % acItems.length; renderAutocompleteList(); }
+      else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyWikilinkAutocomplete(acIndex); }
+      else if (e.key === 'Escape') { acOpen = false; document.getElementById('wikilinkAutocomplete').classList.remove('open'); }
+    }
+
+    function toggleConnectBox() {
+      const box = document.getElementById('connectBox');
+      box.classList.toggle('open');
+      if (box.classList.contains('open')) { document.getElementById('connectSearchInput').value = ''; renderConnectOptions(); document.getElementById('connectSearchInput').focus(); }
+    }
+    function renderConnectOptions() {
+      const note = state.notes.find(n => n.id === state.activeNoteId); if (!note) return;
+      const existing = extractWikilinks(note.body).map(l => l.toLowerCase());
+      const q = (document.getElementById('connectSearchInput').value || '').toLowerCase().trim();
+      let html = state.notes.filter(n => n.id !== note.id && n.title.toLowerCase().includes(q)).map(n => {
+        const linked = existing.includes(n.title.toLowerCase());
+        return `<button class="connect-opt ${linked ? 'linked' : ''}" data-connect-title="${escapeHtml(n.title)}"><span>${escapeHtml(n.title)}</span><span class="mono" style="font-size:10.5px;">${linked ? '✓ Conectada' : '+ Conectar'}</span></button>`;
+      }).join('');
+      if (q && !state.notes.some(n => n.title.toLowerCase() === q)) {
+        const raw = document.getElementById('connectSearchInput').value.trim();
+        html += `<button class="connect-opt" style="color:var(--accent);" data-create-connect="${escapeHtml(raw)}"><span>Criar e conectar "${escapeHtml(raw)}"</span><span class="mono">+</span></button>`;
+      }
+      document.getElementById('connectList').innerHTML = html || `<div style="padding:6px;font-size:11.5px;color:var(--text-muted);">Digite um nome para criar.</div>`;
+    }
+    document.getElementById('connectList').addEventListener('click', (e) => {
+      const c = e.target.closest('[data-connect-title]'); if (c) return toggleConnectionWithNote(c.dataset.connectTitle);
+      const cr = e.target.closest('[data-create-connect]'); if (cr) return createAndConnectNote(cr.dataset.createConnect);
+    });
+    function connectFromInput() {
+      const raw = document.getElementById('connectSearchInput').value.trim(); if (!raw) return;
+      const ex = state.notes.find(n => n.title.toLowerCase() === raw.toLowerCase());
+      if (ex) toggleConnectionWithNote(ex.title); else createAndConnectNote(raw);
+    }
+    function toggleConnectionWithNote(targetTitle) {
+      const note = state.notes.find(n => n.id === state.activeNoteId); if (!note) return;
+      const re = new RegExp(`\\s*\\[\\[${targetTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]`, 'gi');
+      if (re.test(note.body)) { note.body = note.body.replace(re, '').trim(); showToast(`Conexão removida`); }
+      else { note.body = (note.body.trim() ? note.body.trim() + '\n' : '') + `Relacionado: [[${targetTitle}]]`; showToast(`Conectado a [[${targetTitle}]]`); }
+      saveState(); renderNotebook();
+    }
+    function createAndConnectNote(newTitle) {
+      const note = state.notes.find(n => n.id === state.activeNoteId); if (!note) return;
+      state.notes.push({ id: 'note-' + Date.now(), title: newTitle, body: `Conectado a [[${note.title}]].`, updatedAt: 'Agora' });
+      note.body = (note.body.trim() ? note.body.trim() + '\n' : '') + `Relacionado: [[${newTitle}]]`;
+      saveState(); document.getElementById('connectSearchInput').value = ''; renderNotebook(); showToast(`"${newTitle}" criada e conectada`);
+    }
+    function openOrCreateWikilink(title) {
+      const ex = state.notes.find(n => n.title.toLowerCase() === title.toLowerCase());
+      if (ex) selectNote(ex.id); else { createNewNote(title); showToast(`Nota "[[${title}]]" criada`); }
+    }
+
+    function setGraphScope(scope) {
+      graphScope = scope;
+      document.getElementById('btnGraphLocal').classList.toggle('active', scope === 'local');
+      document.getElementById('btnGraphGlobal').classList.toggle('active', scope === 'global');
+      document.getElementById('graphHeadingLabel').textContent = scope === 'local' ? 'Grafo Local (1º e 2º grau)' : 'Grafo Global (Todas as notas)';
+      const note = state.notes.find(n => n.id === state.activeNoteId) || state.notes[0];
+      if (note) renderGraph(note);
+    }
+
+    function toggleGraphLinkMode() {
+      graphLinkMode = !graphLinkMode;
+      document.getElementById('btnGraphLinkMode').classList.toggle('active', graphLinkMode);
+      showToast(graphLinkMode ? 'Modo Ligar: arraste de uma bolinha até outra' : 'Modo Mover: arraste as bolinhas livremente');
+    }
+
+    function renderGraph(centerNote) {
+      const W = 274, H = 220, cx = W / 2, cy = H / 2, nodes = [], edges = [];
+      if (graphScope === 'global') {
+        const count = state.notes.length, r = Math.min(82, Math.max(46, count * 12));
+        state.notes.forEach((n, i) => {
+          const a = (i / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
+          nodes.push({ id: n.id, title: n.title, isCenter: n.id === centerNote.id, degree: n.id === centerNote.id ? 0 : 1, x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+        });
+        state.notes.forEach(src => {
+          extractWikilinks(src.body).forEach(ln => {
+            const sN = nodes.find(x => x.id === src.id), tN = nodes.find(x => x.title.toLowerCase() === ln.toLowerCase());
+            if (sN && tN && sN.id !== tN.id && !edges.some(e => (e.from === sN && e.to === tN) || (e.from === tN && e.to === sN))) edges.push({ from: sN, to: tN, dashed: false });
+          });
+        });
+      } else {
+        const cObj = { id: centerNote.id, title: centerNote.title, isCenter: true, degree: 0, x: cx, y: cy };
+        nodes.push(cObj);
+        const firstMap = new Map();
+        extractWikilinks(centerNote.body).forEach(name => {
+          const t = state.notes.find(n => n.title.toLowerCase() === name.toLowerCase());
+          firstMap.set(name.toLowerCase(), { id: t ? t.id : null, title: t ? t.title : name, degree: 1 });
+        });
+        state.notes.forEach(n => {
+          if (n.id !== centerNote.id && extractWikilinks(n.body).some(x => x.toLowerCase() === centerNote.title.toLowerCase())) {
+            firstMap.set(n.title.toLowerCase(), { id: n.id, title: n.title, degree: 1 });
+          }
+        });
+        const first = [...firstMap.values()];
+        first.forEach((fn, i) => {
+          const a = (i / Math.max(first.length, 1)) * Math.PI * 2 - Math.PI / 2;
+          fn.x = cx + Math.cos(a) * 62; fn.y = cy + Math.sin(a) * 62;
+          nodes.push(fn); edges.push({ from: cObj, to: fn, dashed: false });
+        });
+        const second = [];
+        first.forEach((fn, idx) => {
+          const obj = state.notes.find(n => n.id === fn.id); if (!obj) return;
+          extractWikilinks(obj.body).forEach(ln => {
+            const low = ln.toLowerCase();
+            if (low !== centerNote.title.toLowerCase() && !firstMap.has(low) && !second.some(s => s.title.toLowerCase() === low)) {
+              const t = state.notes.find(n => n.title.toLowerCase() === low);
+              second.push({ id: t ? t.id : null, title: t ? t.title : ln, parent: fn, parentIdx: idx, degree: 2 });
+            }
+          });
+        });
+        second.forEach((sn, i) => {
+          const a = ((sn.parentIdx + 0.35 + i * 0.25) / Math.max(first.length, 1)) * Math.PI * 2 - Math.PI / 2;
+          sn.x = Math.max(20, Math.min(W - 20, cx + Math.cos(a) * 92));
+          sn.y = Math.max(20, Math.min(H - 22, cy + Math.sin(a) * 92));
+          nodes.push(sn); edges.push({ from: sn.parent, to: sn, dashed: true });
+        });
+      }
+      graphNodesCache = { nodes, edges };
+      document.getElementById('graphNodeCount').textContent = `${nodes.length} nós`;
+      drawGraphSvg();
+    }
+
+    function drawGraphSvg() {
+      const svg = document.getElementById('localGraphSvg'), { nodes, edges } = graphNodesCache;
+      const edgesSvg = edges.map((e, idx) => `
+        <line class="graph-edge" data-edge-idx="${idx}" x1="${e.from.x}" y1="${e.from.y}" x2="${e.to.x}" y2="${e.to.y}"
+          stroke="${e.dashed ? 'var(--border)' : 'var(--border-strong)'}" ${e.dashed ? 'stroke-dasharray="3 3"' : ''} stroke-width="${e.dashed ? 1 : 1.3}" />`).join('');
+      const nodesSvg = nodes.map((n, idx) => {
+        const r = n.isCenter ? 8 : (n.degree === 1 ? 6 : 4.5);
+        const fill = n.isCenter ? 'var(--accent)' : (n.degree === 1 ? 'var(--bg-surface)' : 'var(--text-muted)');
+        const stroke = n.degree === 1 ? 'stroke="var(--text-secondary)" stroke-width="1.5"' : '';
+        return `<g class="graph-node" data-node-idx="${idx}">
+          <circle cx="${n.x}" cy="${n.y}" r="16" fill="transparent" />
+          <circle class="node-visible" cx="${n.x}" cy="${n.y}" r="${r}" fill="${fill}" ${stroke} />
+          <text x="${n.x}" y="${n.y + r + 11}" text-anchor="middle" class="graph-label" style="${n.isCenter ? 'fill:var(--text-primary);font-weight:600;' : ''}">${escapeHtml((n.title || 'Nota').slice(0, 16))}</text>
+        </g>`;
+      }).join('');
+      svg.innerHTML = edgesSvg + `<line id="graphTempLine" class="graph-temp-line" style="display:none;" />` + nodesSvg;
+    }
+
+    const graphSvgEl = document.getElementById('localGraphSvg');
+
+    function syncGraphPositions() {
+      const { nodes, edges } = graphNodesCache;
+      graphSvgEl.querySelectorAll('.graph-edge').forEach(el => {
+        const e = edges[Number(el.dataset.edgeIdx)]; if (!e) return;
+        el.setAttribute('x1', e.from.x); el.setAttribute('y1', e.from.y); el.setAttribute('x2', e.to.x); el.setAttribute('y2', e.to.y);
+      });
+      graphSvgEl.querySelectorAll('.graph-node').forEach(g => {
+        const n = nodes[Number(g.dataset.nodeIdx)]; if (!n) return;
+        const r = n.isCenter ? 8 : (n.degree === 1 ? 6 : 4.5);
+        g.querySelectorAll('circle').forEach(c => { c.setAttribute('cx', n.x); c.setAttribute('cy', n.y); });
+        const t = g.querySelector('text'); if (t) { t.setAttribute('x', n.x); t.setAttribute('y', n.y + r + 11); }
+      });
+    }
+
+    function applyGraphHover(idx) {
+      const { nodes, edges } = graphNodesCache, hNode = idx !== null ? nodes[idx] : null, rel = new Set();
+      if (hNode) { rel.add(hNode); edges.forEach(e => { if (e.from === hNode) rel.add(e.to); if (e.to === hNode) rel.add(e.from); }); }
+      graphSvgEl.querySelectorAll('.graph-edge').forEach(el => {
+        const e = edges[Number(el.dataset.edgeIdx)], isR = hNode && (e.from === hNode || e.to === hNode);
+        el.classList.toggle('highlighted', Boolean(isR)); el.classList.toggle('dimmed', Boolean(hNode && !isR));
+      });
+      graphSvgEl.querySelectorAll('.graph-node').forEach(g => {
+        const n = nodes[Number(g.dataset.nodeIdx)]; g.classList.toggle('dimmed', Boolean(hNode && !rel.has(n)));
+      });
+    }
+
+    function getSvgCoords(e) {
+      const rect = graphSvgEl.getBoundingClientRect();
+      return {
+        x: Math.max(14, Math.min(260, ((e.clientX - rect.left) / rect.width) * 274)),
+        y: Math.max(14, Math.min(200, ((e.clientY - rect.top) / rect.height) * 220))
+      };
+    }
+
+    function connectTwoNodes(srcNode, tgtNode) {
+      if (!srcNode || !tgtNode || srcNode.title === tgtNode.title) return;
+      let srcNote = state.notes.find(n => n.id === srcNode.id || n.title.toLowerCase() === srcNode.title.toLowerCase());
+      if (!srcNote) { srcNote = { id: 'note-' + Date.now(), title: srcNode.title, body: '', updatedAt: 'Agora' }; state.notes.push(srcNote); }
+      const re = new RegExp(`\\[\\[${tgtNode.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]`, 'i');
+      if (re.test(srcNote.body)) return showToast(`"${srcNote.title}" já está conectada a "${tgtNode.title}"`);
+      srcNote.body = (srcNote.body.trim() ? srcNote.body.trim() + '\n' : '') + `Relacionado: [[${tgtNode.title}]]`;
+      srcNote.updatedAt = 'Agora'; saveState(); renderNotebook();
+      showToast(`Conectado: [[${srcNote.title}]] ↔ [[${tgtNode.title}]]`);
+    }
+
+    graphSvgEl.addEventListener('pointerover', (e) => { if (draggingNode || linkingFromNode) return; const g = e.target.closest('.graph-node'); applyGraphHover(g ? Number(g.dataset.nodeIdx) : null); });
+    graphSvgEl.addEventListener('pointerleave', () => { if (!draggingNode && !linkingFromNode) applyGraphHover(null); });
+    graphSvgEl.addEventListener('pointerdown', (e) => {
+      const g = e.target.closest('.graph-node'); if (!g) return;
+      e.preventDefault();
+      const node = graphNodesCache.nodes[Number(g.dataset.nodeIdx)];
+      dragMoved = false; graphSvgEl.setPointerCapture(e.pointerId);
+      if (graphLinkMode || e.shiftKey) {
+        linkingFromNode = node;
+        const temp = document.getElementById('graphTempLine');
+        if (temp) { temp.setAttribute('x1', node.x); temp.setAttribute('y1', node.y); temp.setAttribute('x2', node.x); temp.setAttribute('y2', node.y); temp.style.display = 'block'; }
+      } else draggingNode = node;
+    });
+    graphSvgEl.addEventListener('pointermove', (e) => {
+      const { x, y } = getSvgCoords(e);
+      if (linkingFromNode) {
+        const temp = document.getElementById('graphTempLine');
+        if (temp) { temp.setAttribute('x2', x); temp.setAttribute('y2', y); }
+        graphSvgEl.querySelectorAll('.graph-node').forEach(g => {
+          const n = graphNodesCache.nodes[Number(g.dataset.nodeIdx)];
+          g.classList.toggle('drop-target', n !== linkingFromNode && Math.hypot(n.x - x, n.y - y) < 20);
+        });
+        return;
+      }
+      if (!draggingNode) return;
+      if (Math.hypot(x - draggingNode.x, y - draggingNode.y) > 3) dragMoved = true;
+      draggingNode.x = x; draggingNode.y = y; syncGraphPositions();
+    });
+    graphSvgEl.addEventListener('pointerup', (e) => {
+      if (linkingFromNode) {
+        const { x, y } = getSvgCoords(e);
+        const target = graphNodesCache.nodes.find(n => n !== linkingFromNode && Math.hypot(n.x - x, n.y - y) < 22);
+        const temp = document.getElementById('graphTempLine'); if (temp) temp.style.display = 'none';
+        graphSvgEl.querySelectorAll('.graph-node.drop-target').forEach(g => g.classList.remove('drop-target'));
+        if (target) connectTwoNodes(linkingFromNode, target);
+        linkingFromNode = null; return;
+      }
+      if (!draggingNode) return;
+      const clicked = draggingNode; draggingNode = null;
+      if (!dragMoved && !clicked.isCenter) openOrCreateWikilink(clicked.title);
+    });
+
+    function renderBacklinks(note) {
+      const target = (note.title || '').toLowerCase();
+      const inc = state.notes.filter(n => n.id !== note.id && extractWikilinks(n.body).some(l => l.toLowerCase() === target));
+      document.getElementById('backlinksCount').textContent = inc.length;
+      document.getElementById('backlinksList').innerHTML = inc.length
+        ? inc.map(n => `<button class="backlink-item" onclick="selectNote('${n.id}')"><span class="backlink-title">${escapeHtml(n.title)}</span><span class="backlink-snippet">${escapeHtml(n.body.slice(0, 72))}...</span></button>`).join('')
+        : `<p style="font-size:12px;color:var(--text-muted);">Nenhuma outra nota aponta para esta.</p>`;
+    }
+
+    function renderLinkedFlashcards(note) {
+      const target = (note.title || '').toLowerCase();
+      const linked = state.flashcards.filter(c => (c.source || '').toLowerCase().includes(target) && target.length > 0);
+      document.getElementById('linkedFlashcardsList').innerHTML = linked.length
+        ? linked.map(c => `<div class="backlink-item" style="cursor:pointer;" onclick="switchView('review')"><span class="backlink-title">${escapeHtml(c.front)}</span><span class="backlink-snippet mono">S: ${c.stability.toFixed(1)}d · R: ${c.retrievability}%</span></div>`).join('')
+        : `<p style="font-size:12px;color:var(--text-muted);">Sem cards vinculados.</p>`;
+    }
+
+    function setNotebookMode(mode) {
+      notebookMode = mode;
+      document.getElementById('btnModeText').classList.toggle('active', mode === 'text');
+      document.getElementById('btnModePreview').classList.toggle('active', mode === 'preview');
+      document.getElementById('btnModeCanvas').classList.toggle('active', mode === 'canvas');
+      document.getElementById('textEditorPane').style.display = mode === 'canvas' ? 'none' : 'block';
+      document.getElementById('noteBodyInput').style.display = mode === 'text' ? 'block' : 'none';
+      document.getElementById('notePreviewBox').classList.toggle('active', mode === 'preview');
+      document.getElementById('canvasStage').classList.toggle('active', mode === 'canvas');
+      const note = state.notes.find(n => n.id === state.activeNoteId);
+      if (mode === 'preview' && note) renderNotePreview(note);
+      if (mode === 'canvas') { loadNoteStrokes(); setTimeout(resizeCanvas, 30); }
+    }
+    function toggleInspector() { document.getElementById('inspectorPane').classList.toggle('collapsed'); if (notebookMode === 'canvas') setTimeout(resizeCanvas, 40); }
+
+    /* =========================================================
+       CANVAS CORNELL (POR NOTA)
+       ========================================================= */
+    const canvas = document.getElementById('freehandCanvas'), ctx = canvas.getContext('2d');
+    let strokes = [], currentStroke = null, isDrawing = false, canvasTool = 'pen', canvasColor = '#D48A5A', paperTemplate = 'cornell';
+
+    function loadNoteStrokes() { strokes = state.drawings[state.activeNoteId] ? structuredClone(state.drawings[state.activeNoteId]) : []; redrawCanvas(); }
+    function persistNoteStrokes() { state.drawings[state.activeNoteId] = strokes; saveState(); }
+    function resizeCanvas() {
+      const stage = document.getElementById('canvasStage');
+      if (!stage || !stage.classList.contains('active')) return;
+      const r = stage.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+      canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); redrawCanvas();
+    }
+    function drawPaperBackground(w, h) {
+      const st = getComputedStyle(document.documentElement);
+      ctx.fillStyle = st.getPropertyValue('--canvas-bg').trim(); ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = st.getPropertyValue('--canvas-grid').trim(); ctx.lineWidth = 1;
+      if (paperTemplate === 'cornell') {
+        const cueX = Math.min(220, w * 0.28), topY = 64, sumY = h - 110;
+        for (let y = topY + 28; y < sumY; y += 28) { ctx.beginPath(); ctx.moveTo(cueX, y); ctx.lineTo(w - 24, y); ctx.stroke(); }
+        ctx.strokeStyle = st.getPropertyValue('--accent-border').trim();
+        ctx.beginPath(); ctx.moveTo(24, topY); ctx.lineTo(w - 24, topY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cueX, topY); ctx.lineTo(cueX, sumY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(24, sumY); ctx.lineTo(w - 24, sumY); ctx.stroke();
+        ctx.fillStyle = st.getPropertyValue('--text-muted').trim(); ctx.font = '11px "JetBrains Mono", monospace';
+        ctx.fillText('TÓPICO / DATA', 28, topY - 14); ctx.fillText('PALAVRAS-CHAVE', 28, topY + 20);
+        ctx.fillText('ANOTAÇÕES PRINCIPAIS', cueX + 14, topY + 20); ctx.fillText('SÍNTESE', 28, sumY + 20);
+      } else if (paperTemplate === 'dots') {
+        ctx.fillStyle = st.getPropertyValue('--canvas-grid').trim();
+        for (let x = 24; x < w; x += 24) for (let y = 24; y < h; y += 24) { ctx.beginPath(); ctx.arc(x, y, 1.1, 0, Math.PI * 2); ctx.fill(); }
+      } else if (paperTemplate === 'lined') {
+        for (let y = 40; y < h; y += 28) { ctx.beginPath(); ctx.moveTo(24, y); ctx.lineTo(w - 24, y); ctx.stroke(); }
+      }
+    }
+    function drawSmoothStroke(s) {
+      if (!s.points.length) return;
+      const st = getComputedStyle(document.documentElement);
+      ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = s.tool === 'eraser' ? st.getPropertyValue('--canvas-bg').trim() : (s.color === 'ink' ? st.getPropertyValue('--canvas-ink').trim() : s.color);
+      ctx.lineWidth = s.tool === 'highlighter' ? 14 : (s.tool === 'eraser' ? 20 : 2.2);
+      ctx.globalAlpha = s.tool === 'highlighter' ? 0.25 : 1;
+      ctx.beginPath(); ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (let i = 1; i < s.points.length - 1; i++) ctx.quadraticCurveTo(s.points[i].x, s.points[i].y, (s.points[i].x + s.points[i + 1].x) / 2, (s.points[i].y + s.points[i + 1].y) / 2);
+      const last = s.points[s.points.length - 1]; ctx.lineTo(last.x, last.y); ctx.stroke(); ctx.restore();
+    }
+    function redrawCanvas() { const r = canvas.getBoundingClientRect(); if (!r.width || !r.height) return; drawPaperBackground(r.width, r.height); strokes.forEach(drawSmoothStroke); if (currentStroke) drawSmoothStroke(currentStroke); }
+    canvas.addEventListener('pointerdown', (e) => { const r = canvas.getBoundingClientRect(); isDrawing = true; canvas.setPointerCapture(e.pointerId); currentStroke = { tool: canvasTool, color: canvasColor, points: [{ x: e.clientX - r.left, y: e.clientY - r.top }] }; });
+    canvas.addEventListener('pointermove', (e) => { if (!isDrawing || !currentStroke) return; const r = canvas.getBoundingClientRect(); currentStroke.points.push({ x: e.clientX - r.left, y: e.clientY - r.top }); redrawCanvas(); });
+    canvas.addEventListener('pointerup', () => { if (!isDrawing) return; isDrawing = false; if (currentStroke) { strokes.push(currentStroke); persistNoteStrokes(); } currentStroke = null; });
+    function setCanvasTool(t) { canvasTool = t; ['toolPen', 'toolHighlighter', 'toolEraser'].forEach(id => document.getElementById(id).classList.remove('active')); document.getElementById({ pen: 'toolPen', highlighter: 'toolHighlighter', eraser: 'toolEraser' }[t]).classList.add('active'); }
+    function setCanvasColor(c, b) { canvasColor = c; document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); b.classList.add('active'); }
+    function setPaperTemplate(t) { paperTemplate = t; redrawCanvas(); }
+    function undoCanvas() { strokes.pop(); persistNoteStrokes(); redrawCanvas(); }
+    function clearCanvas() { strokes = []; persistNoteStrokes(); redrawCanvas(); }
+    function exportCanvasPNG() { const a = document.createElement('a'); a.download = 'aura-cornell.png'; a.href = canvas.toDataURL('image/png'); a.click(); showToast('PNG exportado'); }
+
+    /* =========================================================
+       MÓDULO 3: MAPAS MENTAIS INTERATIVOS
+       ========================================================= */
+    let mmSelectedId = null, mmPan = { x: 0, y: 0 }, mmDraggingNode = null, mmPanning = false, mmStart = { x: 0, y: 0 };
+
+    function getActiveMindMap() { return state.mindmaps.find(m => m.id === state.activeMindMapId) || state.mindmaps[0]; }
+
+    function renderMindMapView() {
+      document.getElementById('mindmapsList').innerHTML = state.mindmaps.map(m => `
+        <div class="list-row ${m.id === state.activeMindMapId ? 'active' : ''}" onclick="selectMindMap('${m.id}')">
+          <span class="list-row-title">${escapeHtml(m.title)}</span>
+          <span class="list-row-meta">${m.nodes.length} nós</span>
+          ${state.mindmaps.length > 1 ? `<button class="list-row-del" onclick="deleteMindMap('${m.id}', event)">✕</button>` : ''}
+        </div>`).join('');
+      const map = getActiveMindMap();
+      if (map && !map.nodes.some(n => n.id === mmSelectedId)) mmSelectedId = map.nodes[0]?.id || null;
+      drawMindMapSvg();
+      updateBreadcrumbs(); updateBadges();
+    }
+
+    function selectMindMap(id) { state.activeMindMapId = id; mmPan = { x: 0, y: 0 }; saveState(); renderMindMapView(); }
+    function createNewMindMap() {
+      const title = prompt('Nome do novo Mapa Mental:')?.trim();
+      if (!title) return;
+      const m = { id: 'mm-' + Date.now(), title, nodes: [{ id: 'n-' + Date.now(), parentId: null, text: title, x: 180, y: 220 }] };
+      state.mindmaps.unshift(m); state.activeMindMapId = m.id; mmSelectedId = m.nodes[0].id; mmPan = { x: 0, y: 0 };
+      saveState(); renderMindMapView(); showToast('Mapa mental criado');
+    }
+    function deleteMindMap(id, e) {
+      e.stopPropagation();
+      if (state.mindmaps.length <= 1) return;
+      state.mindmaps = state.mindmaps.filter(m => m.id !== id);
+      if (state.activeMindMapId === id) state.activeMindMapId = state.mindmaps[0].id;
+      saveState(); renderMindMapView(); showToast('Mapa mental excluído');
+    }
+
+    function drawMindMapSvg() {
+      const svg = document.getElementById('mindmapSvg'), map = getActiveMindMap();
+      if (!svg || !map) return;
+      const edgesHtml = map.nodes.filter(n => n.parentId).map(n => {
+        const p = map.nodes.find(x => x.id === n.parentId); if (!p) return '';
+        const x1 = p.x + mmPan.x, y1 = p.y + mmPan.y, x2 = n.x + mmPan.x, y2 = n.y + mmPan.y;
+        const dx = Math.max(40, Math.abs(x2 - x1) * 0.5);
+        return `<path class="mm-edge" d="M ${x1} ${y1} C ${x1 + (x2 >= x1 ? dx : -dx)} ${y1}, ${x2 - (x2 >= x1 ? dx : -dx)} ${y2}, ${x2} ${y2}" />`;
+      }).join('');
+
+      const nodesHtml = map.nodes.map(n => {
+        const w = Math.max(118, n.text.length * 8.2 + 28), h = 36;
+        const nx = n.x + mmPan.x, ny = n.y + mmPan.y;
+        const cls = `mm-node-group ${!n.parentId ? 'root' : ''} ${n.id === mmSelectedId ? 'selected' : ''}`;
+        return `<g class="${cls}" data-mm-id="${n.id}" transform="translate(${nx}, ${ny})">
+          <rect class="mm-node-rect" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" />
+          <text class="mm-node-text">${escapeHtml(n.text)}</text>
+        </g>`;
+      }).join('');
+      svg.innerHTML = edgesHtml + nodesHtml;
+    }
+
+    function addMindMapChild() {
+      const map = getActiveMindMap(); if (!map) return;
+      const parent = map.nodes.find(n => n.id === mmSelectedId) || map.nodes[0];
+      const siblings = map.nodes.filter(n => n.parentId === parent.id);
+      const newNode = {
+        id: 'n-' + Date.now() + Math.random().toString(16).slice(2, 5),
+        parentId: parent.id, text: 'Novo tópico',
+        x: parent.x + 220, y: parent.y + (siblings.length - 0.5) * 68
+      };
+      map.nodes.push(newNode); mmSelectedId = newNode.id;
+      saveState(); renderMindMapView(); openMindMapInlineEditor(newNode);
+    }
+
+    function deleteSelectedMindMapNode() {
+      const map = getActiveMindMap(); if (!map || !mmSelectedId) return;
+      const target = map.nodes.find(n => n.id === mmSelectedId);
+      if (!target || !target.parentId) return showToast('O nó raiz não pode ser removido');
+      const toRemove = new Set([target.id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        map.nodes.forEach(n => { if (toRemove.has(n.parentId) && !toRemove.has(n.id)) { toRemove.add(n.id); changed = true; } });
+      }
+      map.nodes = map.nodes.filter(n => !toRemove.has(n.id));
+      mmSelectedId = map.nodes[0]?.id || null;
+      saveState(); renderMindMapView(); showToast('Ramo removido');
+    }
+
+    function autoLayoutMindMap() {
+      const map = getActiveMindMap(); if (!map) return;
+      const root = map.nodes.find(n => !n.parentId); if (!root) return;
+      root.x = 150; root.y = 220;
+      function layoutChildren(pid, depth, yStart) {
+        const kids = map.nodes.filter(n => n.parentId === pid);
+        let curY = yStart;
+        kids.forEach(k => {
+          k.x = 150 + depth * 225;
+          const subCount = Math.max(1, map.nodes.filter(x => x.parentId === k.id).length);
+          k.y = curY + (subCount - 1) * 32;
+          curY = layoutChildren(k.id, depth + 1, curY);
+          if (subCount === 1) curY += 64;
+        });
+        return curY;
+      }
+      layoutChildren(root.id, 1, 90);
+      mmPan = { x: 0, y: 0 }; saveState(); drawMindMapSvg(); showToast('Mapa organizado');
+    }
+
+    function centerMindMap() { mmPan = { x: 0, y: 0 }; drawMindMapSvg(); }
+
+    function convertMindMapToNote() {
+      const map = getActiveMindMap(); if (!map) return;
+      const root = map.nodes.find(n => !n.parentId); if (!root) return;
+      let md = '';
+      function walk(pid, depth) {
+        map.nodes.filter(n => n.parentId === pid).forEach(n => {
+          md += `${'  '.repeat(depth)}- ${n.text}\n`;
+          walk(n.id, depth + 1);
+        });
+      }
+      walk(root.id, 0);
+      createNewNote(map.title, md.trim());
+      showToast(`Mapa "${map.title}" convertido em Nota!`);
+    }
+
+    function openMindMapInlineEditor(node) {
+      const ed = document.getElementById('mmInlineEditor');
+      ed.value = node.text;
+      ed.style.left = `${Math.max(12, node.x + mmPan.x - 85)}px`;
+      ed.style.top = `${Math.max(12, node.y + mmPan.y - 18)}px`;
+      ed.style.width = '170px';
+      ed.style.display = 'block';
+      ed.focus(); ed.select();
+      const finish = () => {
+        if (ed.style.display === 'none') return;
+        const val = ed.value.trim();
+        if (val) {
+          node.text = val;
+          if (!node.parentId) getActiveMindMap().title = val;
+          saveState();
+        }
+        ed.style.display = 'none';
+        renderMindMapView();
+      };
+      ed.onblur = finish;
+      ed.onkeydown = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); finish(); }
+        if (e.key === 'Escape') { ed.style.display = 'none'; }
+      };
+    }
+
+    const mmViewport = document.getElementById('mindmapViewport');
+    mmViewport.addEventListener('pointerdown', (e) => {
+      if (e.target.id === 'mmInlineEditor') return;
+      const g = e.target.closest('.mm-node-group'), map = getActiveMindMap();
+      if (!map) return;
+      if (g) {
+        mmSelectedId = g.dataset.mmId;
+        mmDraggingNode = map.nodes.find(n => n.id === mmSelectedId);
+        mmStart = { x: e.clientX - mmDraggingNode.x, y: e.clientY - mmDraggingNode.y };
+        drawMindMapSvg();
+      } else {
+        mmPanning = true;
+        mmStart = { x: e.clientX - mmPan.x, y: e.clientY - mmPan.y };
+      }
+    });
+    mmViewport.addEventListener('pointermove', (e) => {
+      if (mmDraggingNode) {
+        mmDraggingNode.x = e.clientX - mmStart.x; mmDraggingNode.y = e.clientY - mmStart.y;
+        drawMindMapSvg();
+      } else if (mmPanning) {
+        mmPan.x = e.clientX - mmStart.x; mmPan.y = e.clientY - mmStart.y;
+        drawMindMapSvg();
+      }
+    });
+    window.addEventListener('pointerup', () => {
+      if (mmDraggingNode) { saveState(); mmDraggingNode = null; }
+      mmPanning = false;
+    });
+    mmViewport.addEventListener('dblclick', (e) => {
+      const g = e.target.closest('.mm-node-group'), map = getActiveMindMap();
+      if (!g || !map) return;
+      const node = map.nodes.find(n => n.id === g.dataset.mmId);
+      if (node) openMindMapInlineEditor(node);
+    });
+
+    /* =========================================================
+       MÓDULO 4: REVISÃO FSRS REAL (dueAt + CLOZE + LEECH)
+       ========================================================= */
+    let cardRevealed = false;
+    function getDueCards() { return state.flashcards.filter(c => (c.dueAt || 0) <= Date.now()); }
+    function formatCloze(text, rev) {
+      return escapeHtml(text).replace(/\{\{([^}]+)\}\}/g, (_, inner) => rev ? `<span class="cloze-revealed">${inner}</span>` : `<span class="cloze-blank">[ ... ]</span>`);
+    }
+    function calcNextIntervals(card) {
+      const s = Math.max(0.5, card.stability || 2);
+      const hD = Math.max(1, Math.round(s * 0.85)), gD = Math.max(2, Math.round(s * 1.65)), eD = Math.max(4, Math.round(s * 2.4));
+      return {
+        again: { label: '10 min', ms: 0, nextS: Math.max(0.6, s * 0.45), nextD: Math.min(10, card.difficulty + 0.8) },
+        hard:  { label: `${hD} d`, ms: hD * 86400000, nextS: s * 0.9, nextD: Math.min(10, card.difficulty + 0.3) },
+        good:  { label: `${gD} d`, ms: gD * 86400000, nextS: s * 1.65, nextD: Math.max(1, card.difficulty - 0.15) },
+        easy:  { label: `${eD} d`, ms: eD * 86400000, nextS: s * 2.4, nextD: Math.max(1, card.difficulty - 0.5) }
+      };
+    }
+
+    function renderReview() {
+      const due = getDueCards(); cardRevealed = false; updateBadges(); updateBreadcrumbs();
+      document.getElementById('fsrsQueueLabel').textContent = `Fila de revisão: ${due.length} pendente(s)`;
+      const stage = document.getElementById('flashcardStage');
+      if (!due.length) {
+        document.getElementById('metricS').textContent = '—'; document.getElementById('metricD').textContent = '—'; document.getElementById('metricR').textContent = '100%';
+        stage.innerHTML = `<div style="margin:auto;text-align:center;max-width:380px;"><div class="mono" style="color:var(--success);font-size:12px;margin-bottom:8px;">FILA ZERADA</div><h3 class="serif" style="font-size:24px;font-weight:500;margin-bottom:8px;">Memória consolidada por hoje.</h3><p style="font-size:13px;color:var(--text-secondary);margin-bottom:18px;">Todos os cartões foram agendados por data real (FSRS).</p><button class="btn-secondary" onclick="resetDemoQueue()">Reabrir fila para praticar</button></div>`;
+        return;
+      }
+      const card = due[0], iv = calcNextIntervals(card);
+      document.getElementById('metricS').textContent = `${card.stability.toFixed(1)}d`;
+      document.getElementById('metricD').textContent = `${card.difficulty.toFixed(1)}/10`;
+      document.getElementById('metricR').textContent = `${card.retrievability}%`;
+      const leech = (card.lapses || 0) >= 4 ? `<span class="leech-badge">LEECH (${card.lapses} lapsos)</span>` : '';
+      stage.innerHTML = `
+        <div>
+          <div class="fc-source-row"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span class="fc-source">ORIGEM · ${escapeHtml(card.source || 'Caderno')}</span>${leech}</div><button class="mini-btn" onclick="deleteFlashcard('${card.id}')">Excluir</button></div>
+          <div class="fc-question" id="fcQuestionBox">${formatCloze(card.front, false)}</div>
+          <div class="fc-answer" id="fcAnswerBox">${escapeHtml(card.back)}</div>
+        </div>
+        <div class="fc-controls">
+          <button class="btn-primary" id="revealCardBtn" onclick="revealCurrentCard()">Mostrar resposta <span class="kbd" style="color:#fff;border-color:rgba(255,255,255,0.35);">Espaço</span></button>
+          <div class="fsrs-grade-grid" id="fsrsGradeGrid">
+            <button class="grade-btn" onclick="gradeCurrentCard('again')"><span class="grade-label">1 · Errei</span><span class="grade-interval">${iv.again.label}</span></button>
+            <button class="grade-btn" onclick="gradeCurrentCard('hard')"><span class="grade-label">2 · Difícil</span><span class="grade-interval">${iv.hard.label}</span></button>
+            <button class="grade-btn" onclick="gradeCurrentCard('good')"><span class="grade-label">3 · Bom</span><span class="grade-interval">${iv.good.label}</span></button>
+            <button class="grade-btn" onclick="gradeCurrentCard('easy')"><span class="grade-label">4 · Fácil</span><span class="grade-interval">${iv.easy.label}</span></button>
+          </div>
+        </div>`;
+    }
+    function revealCurrentCard() {
+      const due = getDueCards(); if (!due.length) return;
+      cardRevealed = true;
+      document.getElementById('fcQuestionBox').innerHTML = formatCloze(due[0].front, true);
+      document.getElementById('fcAnswerBox').classList.add('revealed');
+      document.getElementById('revealCardBtn').style.display = 'none';
+      document.getElementById('fsrsGradeGrid').classList.add('visible');
+    }
+    function gradeCurrentCard(r) {
+      const due = getDueCards(); if (!due.length) return;
+      const card = due[0], iv = calcNextIntervals(card)[r];
+      card.stability = Number(iv.nextS.toFixed(1)); card.difficulty = Number(iv.nextD.toFixed(1)); card.retrievability = r === 'again' ? 75 : 96;
+      if (r === 'again') { card.lapses = (card.lapses || 0) + 1; card.dueAt = Date.now() - 1000; state.flashcards.push(state.flashcards.splice(state.flashcards.indexOf(card), 1)[0]); }
+      else card.dueAt = Date.now() + iv.ms;
+      logDailyActivity(1); saveState(); renderReview();
+    }
+    function deleteFlashcard(id) { state.flashcards = state.flashcards.filter(c => c.id !== id); saveState(); renderReview(); showToast('Card removido'); }
+    function resetDemoQueue() { state.flashcards.forEach(c => c.dueAt = Date.now() - 1000); saveState(); renderReview(); }
+    function openFlashcardModal(front = '', back = '', source = '') {
+      const note = state.notes.find(n => n.id === state.activeNoteId);
+      document.getElementById('fcFrontInput').value = front; document.getElementById('fcBackInput').value = back;
+      document.getElementById('fcSourceInput').value = source || (note ? note.title : '');
+      openModal('fcModalBackdrop'); setTimeout(() => document.getElementById('fcFrontInput').focus(), 40);
+    }
+    function saveNewFlashcard() {
+      const front = document.getElementById('fcFrontInput').value.trim(), back = document.getElementById('fcBackInput').value.trim();
+      const source = document.getElementById('fcSourceInput').value.trim() || 'Caderno';
+      if (!front || (!back && !front.includes('{{'))) return showToast('Preencha frente e verso');
+      state.flashcards.unshift({ id: 'fc-' + Date.now(), front, back: back || 'Revisão Cloze.', source, stability: 1.5, difficulty: 5.0, retrievability: 90, lapses: 0, dueAt: Date.now() - 1000 });
+      saveState(); closeModal('fcModalBackdrop'); updateBadges();
+      if (state.activeView === 'review') renderReview(); if (state.activeView === 'notebook') renderNotebook();
+      showToast('Flashcard criado', 'Revisar', () => switchView('review'));
+    }
+
+    /* =========================================================
+       MÓDULO 5: AGENDA (SEG–SEX / SEG–DOM + EDITAR) & CONSISTÊNCIA INTERATIVA
+       ========================================================= */
+    const ALL_WEEK_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+    let selectedHeatmapKey = todayKey(0);
+    let editingBlockId = null;
+
+    function setWeekView(count) {
+      state.weekDaysCount = count;
+      document.getElementById('btnWeek5').classList.toggle('active', count === 5);
+      document.getElementById('btnWeek7').classList.toggle('active', count === 7);
+      saveState(); renderSchedule();
+    }
+
+    function calcStreak() {
+      let streak = 0;
+      for (let i = 0; i < 365; i++) {
+        if ((state.activityLog[todayKey(i)] || 0) > 0) streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    function renderHeatmap() {
+      const hm = document.getElementById('heatmapGrid');
+      const cells = [];
+      for (let i = 27; i >= 0; i--) {
+        const k = todayKey(i);
+        const count = state.activityLog[k] || 0;
+        const level = count === 0 ? 0 : (count === 1 ? 1 : (count <= 3 ? 2 : 3));
+        const sel = k === selectedHeatmapKey ? 'selected' : '';
+        cells.push(`<button class="hm-cell ${sel}" data-level="${level}" data-day-key="${k}" title="${formatDatePT(k)}: ${count} atividade(s)" onclick="selectHeatmapDay('${k}')"></button>`);
+      }
+      hm.innerHTML = cells.join('');
+
+      const streak = calcStreak();
+      const todayCount = state.activityLog[todayKey(0)] || 0;
+      document.getElementById('streakLabel').textContent = `${streak}d seguidos · ${todayCount} hoje`;
+
+      const selCount = state.activityLog[selectedHeatmapKey] || 0;
+      document.getElementById('hmSelectedInfo').innerHTML = `<strong>${formatDatePT(selectedHeatmapKey)}</strong> · <span class="mono">${selCount}</span> atividade(s)`;
+      document.getElementById('hmToggleBtn').textContent = selCount > 0 ? 'Zerar' : 'Marcar dia';
+    }
+
+    function selectHeatmapDay(key) { selectedHeatmapKey = key; renderHeatmap(); }
+    function adjustSelectedDay(delta) {
+      const cur = state.activityLog[selectedHeatmapKey] || 0;
+      state.activityLog[selectedHeatmapKey] = Math.max(0, cur + delta);
+      saveState(); renderHeatmap();
+    }
+    function toggleSelectedDay() {
+      const cur = state.activityLog[selectedHeatmapKey] || 0;
+      state.activityLog[selectedHeatmapKey] = cur > 0 ? 0 : 1;
+      saveState(); renderHeatmap();
+    }
+
+    function renderSchedule() {
+      const count = state.weekDaysCount || 5;
+      document.getElementById('btnWeek5').classList.toggle('active', count === 5);
+      document.getElementById('btnWeek7').classList.toggle('active', count === 7);
+      const grid = document.getElementById('cronGrid');
+      grid.classList.toggle('seven-days', count === 7);
+
+      grid.innerHTML = ALL_WEEK_DAYS.slice(0, count).map((dayName, idx) => {
+        const blocks = state.schedule.filter(b => b.day === idx);
+        return `<div class="cron-col">
+          <div class="cron-day-head">
+            <span>${count === 7 ? dayName.slice(0, 3) : dayName}</span>
+            <button class="cron-add-day" title="Agendar em ${dayName}" onclick="openBlockModal(${idx})">+</button>
+          </div>
+          <div class="cron-blocks">
+            ${blocks.map(b => `
+              <div class="cron-block" onclick="openBlockModal(${b.day}, '${b.id}')">
+                <div class="cron-block-time">${escapeHtml(b.time)}</div>
+                <div>${escapeHtml(b.title)}</div>
+                <button class="cron-block-del" title="Remover" onclick="deleteScheduleBlock('${b.id}', event)">✕</button>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+
+      renderHeatmap();
+
+      document.getElementById('goalsList').innerHTML = state.goals.map(g => `
+        <div class="goal-item">
+          <div class="goal-top"><span>${escapeHtml(g.title)}</span><span class="mono" style="color:var(--accent);">${g.progress}%</span></div>
+          <input type="range" class="aura-slider" min="0" max="100" value="${g.progress}" oninput="updateGoalProgress('${g.id}', this.value)" />
+        </div>`).join('');
+
+      document.getElementById('totalFocusMins').textContent = `${state.sessions.reduce((a, s) => a + s.mins, 0)} min`;
+      document.getElementById('sessionsList').innerHTML = state.sessions.map(s => `
+        <div class="session-row">
+          <div><div style="color:var(--text-primary);">${escapeHtml(s.label)}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${escapeHtml(s.date)}</div></div>
+          <span class="mono">${s.mins}m</span>
+        </div>`).join('');
+    }
+
+    function openBlockModal(dayIdx = 0, blockId = null) {
+      editingBlockId = blockId;
+      const existing = blockId ? state.schedule.find(b => b.id === blockId) : null;
+      document.getElementById('blockModalHeading').textContent = existing ? 'Editar Bloco de Estudo' : 'Agendar Bloco de Estudo';
+      document.getElementById('blockDayInput').value = String(existing ? existing.day : dayIdx);
+      document.getElementById('blockTimeInput').value = existing ? existing.time : '19:30 – 21:00';
+      document.getElementById('blockTitleInput').value = existing ? existing.title : '';
+      document.getElementById('blockDeleteBtn').style.display = existing ? 'inline-flex' : 'none';
+      openModal('blockModalBackdrop');
+      setTimeout(() => document.getElementById('blockTitleInput').focus(), 40);
+    }
+
+    function saveScheduleBlock() {
+      const day = Number(document.getElementById('blockDayInput').value);
+      const time = document.getElementById('blockTimeInput').value.trim() || '19:00 – 20:00';
+      const title = document.getElementById('blockTitleInput').value.trim();
+      if (!title) return showToast('Informe o assunto do bloco');
+      if (editingBlockId) {
+        const b = state.schedule.find(x => x.id === editingBlockId);
+        if (b) { b.day = day; b.time = time; b.title = title; }
+      } else {
+        state.schedule.push({ id: 'b-' + Date.now(), day, time, title });
+      }
+      if (day >= 5 && state.weekDaysCount < 7) state.weekDaysCount = 7;
+      saveState(); closeModal('blockModalBackdrop'); renderSchedule();
+      showToast(editingBlockId ? 'Bloco atualizado' : 'Bloco agendado');
+    }
+
+    function deleteEditingBlock() {
+      if (!editingBlockId) return;
+      state.schedule = state.schedule.filter(b => b.id !== editingBlockId);
+      saveState(); closeModal('blockModalBackdrop'); renderSchedule(); showToast('Bloco removido');
+    }
+    function deleteScheduleBlock(id, e) { e.stopPropagation(); state.schedule = state.schedule.filter(b => b.id !== id); saveState(); renderSchedule(); }
+    function updateGoalProgress(id, val) { const g = state.goals.find(x => x.id === id); if (g) { g.progress = Number(val); saveState(); renderSchedule(); } }
+    function addNewGoal() {
+      const t = prompt('Qual meta semanal deseja acompanhar?')?.trim(); if (!t) return;
+      state.goals.unshift({ id: 'g-' + Date.now(), title: t, progress: 0 }); saveState(); renderSchedule();
+    }
+
+    /* =========================================================
+       POMODORO PRECISO (Date.now()), CAPTURA RÁPIDA & EXPORTAÇÃO
+       ========================================================= */
+    let pomoPresetMins = 25, pomoPresetLabel = 'Pomodoro', pomoSeconds = 25 * 60, pomoRunning = false, pomoEndAt = null, pomoInterval = null;
+
+    function formatTime(sec) { const c = Math.max(0, sec); return `${String(Math.floor(c / 60)).padStart(2, '0')}:${String(c % 60).padStart(2, '0')}`; }
+    function updatePomodoroUI() {
+      const txt = formatTime(pomoSeconds);
+      document.getElementById('pomoDisplay').textContent = txt;
+      document.getElementById('zenTimerDisplay').textContent = txt;
+      document.getElementById('pomodoroGroup').classList.toggle('accent-active', pomoRunning);
+      document.getElementById('pomoDot').style.background = pomoRunning ? 'var(--accent)' : 'var(--text-muted)';
+    }
+    function setPomodoroPreset(mins, label) {
+      closeAllDropdowns(); clearInterval(pomoInterval); pomoRunning = false; pomoEndAt = null;
+      pomoPresetMins = mins; pomoPresetLabel = label; pomoSeconds = mins * 60; updatePomodoroUI(); showToast(`Timer: ${label} (${mins}m)`);
+    }
+    function resetPomodoro() { closeAllDropdowns(); clearInterval(pomoInterval); pomoRunning = false; pomoEndAt = null; pomoSeconds = pomoPresetMins * 60; updatePomodoroUI(); }
+    function togglePomodoro() {
+      pomoRunning = !pomoRunning;
+      if (pomoRunning) {
+        pomoEndAt = Date.now() + pomoSeconds * 1000;
+        pomoInterval = setInterval(() => {
+          pomoSeconds = Math.ceil((pomoEndAt - Date.now()) / 1000);
+          if (pomoSeconds <= 0) {
+            clearInterval(pomoInterval); pomoRunning = false; pomoEndAt = null; pomoSeconds = pomoPresetMins * 60;
+            state.sessions.unshift({ date: 'Agora', label: `Sessão ${pomoPresetLabel} concluída`, mins: pomoPresetMins });
+            logDailyActivity(2); saveState(); if (state.activeView === 'schedule') renderSchedule();
+            showToast(`Sessão de ${pomoPresetMins} min concluída!`);
+          }
+          updatePomodoroUI();
+        }, 500);
+      } else { clearInterval(pomoInterval); pomoEndAt = null; }
+      updatePomodoroUI();
+    }
+
+    function openQuickCapture() { document.getElementById('quickCaptureInput').value = ''; openModal('quickCaptureBackdrop'); setTimeout(() => document.getElementById('quickCaptureInput').focus(), 40); }
+    function saveQuickCapture() {
+      const txt = document.getElementById('quickCaptureInput').value.trim(); if (!txt) return;
+      const note = state.notes.find(n => n.id === state.activeNoteId) || state.notes[0];
+      if (note) { note.body = (note.body.trim() ? note.body.trim() + '\n\n' : '') + txt; note.updatedAt = 'Agora'; }
+      saveState(); closeModal('quickCaptureBackdrop'); if (state.activeView === 'notebook' || splitActive) renderNotebook();
+      showToast(`Capturado em "${note?.title || 'Nota'}"`);
+    }
+
+    function downloadFile(name, content, mime) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type: mime })); a.download = name; a.click(); }
+    function exportActiveNoteMarkdown() {
+      const note = state.notes.find(n => n.id === state.activeNoteId) || state.notes[0]; if (!note) return;
+      const slug = (note.title || 'nota').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      downloadFile(`${slug}.md`, `# ${note.title}\n\n${note.body}\n`, 'text/markdown;charset=utf-8'); showToast(`Exportado: ${slug}.md`);
+    }
+    function exportBackupJSON() { downloadFile(`aura-backup-${todayKey(0)}.json`, JSON.stringify(state, null, 2), 'application/json'); showToast('Backup .json baixado'); }
+    function handleImportBackupJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(reader.result);
+          if (!imported.notes || !imported.sources) throw new Error('Formato inválido');
+          state = normalizeState(imported);
+          saveState(); setTheme(state.theme || 'dark'); switchView(state.activeView || 'reader');
+          showToast('Backup restaurado no IndexedDB!');
+        } catch { showToast('Arquivo .json inválido para o Aura'); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    /* =========================================================
+       PALETA ⌘K COM BUSCA FULL-TEXT UNIFICADA
+       ========================================================= */
+    const STATIC_COMMANDS = [
+      { group: 'Navegação', label: 'Ir para: Leitura & Fontes', kbd: 'Fluxo 1', run: () => switchView('reader') },
+      { group: 'Navegação', label: 'Ir para: Caderno & Grafo', kbd: 'Fluxo 2', run: () => switchView('notebook') },
+      { group: 'Navegação', label: 'Ir para: Mapas Mentais', kbd: 'Fluxo 3', run: () => switchView('mindmap') },
+      { group: 'Navegação', label: 'Ir para: Revisão FSRS', kbd: 'Fluxo 4', run: () => switchView('review') },
+      { group: 'Navegação', label: 'Ir para: Agenda & Sessões', kbd: 'Fluxo 5', run: () => switchView('schedule') },
+      { group: 'Ações', label: 'Alternar Split (Leitura + Caderno)', kbd: 'Split', run: () => toggleSplitView() },
+      { group: 'Ações', label: 'Alternar Modo Zen', kbd: 'Ctrl+\\', run: () => toggleZenMode() },
+      { group: 'Ações', label: 'Ligar Nós no Grafo', kbd: 'Grafo', run: () => { switchView('notebook'); document.getElementById('inspectorPane').classList.remove('collapsed'); toggleGraphLinkMode(); } },
+      { group: 'Ações', label: 'Iniciar / Pausar Pomodoro', kbd: 'Timer', run: () => togglePomodoro() },
+      { group: 'Ações', label: 'Deep Work (50 min)', kbd: '50m', run: () => setPomodoroPreset(50, 'Deep Work') },
+      { group: 'Ações', label: 'Criar Nova Nota', kbd: 'Caderno', run: () => createNewNote() },
+      { group: 'Ações', label: 'Criar Novo Mapa Mental', kbd: 'Mapa', run: () => createNewMindMap() },
+      { group: 'Ações', label: 'Criar Novo Flashcard FSRS', kbd: 'FSRS', run: () => openFlashcardModal() },
+      { group: 'Temas', label: 'Tema: Escuro Fosco', kbd: 'Tema', run: () => setTheme('dark') },
+      { group: 'Temas', label: 'Tema: Papel (Sépia Quente)', kbd: 'Tema', run: () => setTheme('paper') },
+      { group: 'Temas', label: 'Tema: Claro Neutro', kbd: 'Tema', run: () => setTheme('light') },
+      { group: 'Ajuda', label: 'Refazer Tour Interativo', kbd: 'Tutorial', run: () => startTour() },
+      { group: 'Ajuda', label: 'Abrir Guia de Atalhos & Fluxo', kbd: 'Ajuda', run: () => openShortcutsModal() },
+      { group: 'Dados', label: 'Exportar Nota Atual (.md)', kbd: 'Exportar', run: () => exportActiveNoteMarkdown() },
+      { group: 'Dados', label: 'Exportar Backup Completo (.json)', kbd: 'Backup', run: () => exportBackupJSON() },
+      { group: 'Dados', label: 'Importar Backup (.json)', kbd: 'Restaurar', run: () => document.getElementById('importBackupInput').click() }
+    ];
+
+    let cmdFlatItems = [], cmdIndex = 0;
+
+    function openCommandPalette() {
+      openModal('cmdBackdrop');
+      const input = document.getElementById('cmdInput');
+      input.value = ''; cmdIndex = 0;
+      renderCommandList();
+      setTimeout(() => input.focus(), 30);
+    }
+    function closeCommandPalette() { closeModal('cmdBackdrop'); }
+
+    function renderCommandList() {
+      const q = document.getElementById('cmdInput').value.toLowerCase().trim();
+      const dynamicItems = [];
+
+      if (q) {
+        state.notes.forEach(n => {
+          if ((n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q)) {
+            dynamicItems.push({ group: 'Notas', label: n.title || 'Sem título', kbd: 'Nota', run: () => { state.activeNoteId = n.id; switchView('notebook'); } });
+          }
+        });
+        state.mindmaps.forEach(m => {
+          if ((m.title || '').toLowerCase().includes(q)) {
+            dynamicItems.push({ group: 'Mapas', label: m.title, kbd: 'Mapa', run: () => { state.activeMindMapId = m.id; switchView('mindmap'); } });
+          }
+        });
+        state.sources.forEach(s => {
+          if (s.title.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)) {
+            dynamicItems.push({ group: 'Fontes', label: s.title, kbd: 'Fonte', run: () => { state.activeSourceId = s.id; switchView('reader'); } });
+          }
+        });
+      }
+
+      const matchingStatic = STATIC_COMMANDS.filter(c => !q || c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q));
+      cmdFlatItems = [...matchingStatic, ...dynamicItems];
+
+      if (!cmdFlatItems.length) {
+        document.getElementById('cmdList').innerHTML = `<div style="padding:16px;text-align:center;font-size:13px;color:var(--text-muted);">Nenhum comando ou item encontrado.</div>`;
+        return;
+      }
+
+      cmdIndex = Math.min(cmdIndex, cmdFlatItems.length - 1);
+      document.getElementById('cmdList').innerHTML = cmdFlatItems.map((item, idx) => `
+        <button class="cmd-item ${idx === cmdIndex ? 'selected' : ''}" onclick="executeCommand(${idx})">
+          <span style="font-weight:${item.group === 'Ações' ? '500' : '400'};">${escapeHtml(item.label)}</span>
+          <span class="kbd">${escapeHtml(item.kbd)}</span>
+        </button>
+      `).join('');
+    }
+
+    function executeCommand(idx) {
+      const item = cmdFlatItems[idx];
+      if (!item) return;
+      closeCommandPalette();
+      item.run();
+    }
+
+    document.getElementById('cmdInput').addEventListener('keydown', (e) => {
+      if (!cmdFlatItems.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); cmdIndex = (cmdIndex + 1) % cmdFlatItems.length; renderCommandList(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); cmdIndex = (cmdIndex - 1 + cmdFlatItems.length) % cmdFlatItems.length; renderCommandList(); }
+      else if (e.key === 'Enter') { e.preventDefault(); executeCommand(cmdIndex); }
+      else if (e.key === 'Escape') { closeCommandPalette(); }
+    });
+
+    /* =========================================================
+       TOUR INTERATIVO EM 6 PASSOS COM SPOTLIGHT REAL
+       ========================================================= */
+    const TOUR_STEPS = [
+      { targetId: 'tourSidebarNav', title: 'Ciclo Integrado de 5 Passos', desc: 'Navegue pelo estudo estruturado: 1. Leitura → 2. Caderno → 3. Mapas Mentais → 4. Revisão FSRS → 5. Agenda.' },
+      { targetId: 'tourTopbarControls', title: 'Controles de Foco & Ergonomia', desc: 'Pomodoro sincronizado com histórico, alternador de temas (Escuro, Papel/Sépia e Claro) e Modo Zen total.' },
+      { targetId: 'tourReaderPane', title: 'Leitura Ativa & Captura Direta', desc: 'Selecione qualquer trecho de texto no leitor para grifar, enviar ao Caderno com citação clicável ou gerar Flashcard FSRS.' },
+      { targetId: 'tourNotebookArea', title: 'Caderno Editorial & Rascunho', desc: 'Digite [[ para conectar notas no Grafo ou rascunhe livremente usando o Método Cornell.' },
+      { targetId: 'tourLocalGraph', title: 'Grafo SVG Interativo & Ligar Nós', desc: 'Mova os nós livremente com o mouse ou ative Ligar Nós (ou segure Shift) para criar conexões arrastando.' },
+      { targetId: 'tourFsrsArea', title: 'Retenção de Longo Prazo (FSRS)', desc: 'Algoritmo moderno de repetição espaçada por agendamento real, com lacunas Cloze {{termo}} e detecção de Leech.' }
+    ];
+
+    let tourIndex = 0, tourActive = false;
+
+    function startTour() {
+      tourActive = true; tourIndex = 0;
+      closeAllModals(); closeAllDropdowns();
+      document.getElementById('tourOverlay').classList.add('active');
+      renderTourStep();
+    }
+
+    function renderTourStep() {
+      const step = TOUR_STEPS[tourIndex];
+      document.getElementById('tourStepCounter').textContent = `0${tourIndex + 1} / 0${TOUR_STEPS.length}`;
+      document.getElementById('tourTitle').textContent = step.title;
+      document.getElementById('tourDesc').textContent = step.desc;
+      document.getElementById('tourProgressFill').style.width = `${((tourIndex + 1) / TOUR_STEPS.length) * 100}%`;
+      document.getElementById('tourPrevBtn').style.visibility = tourIndex === 0 ? 'hidden' : 'visible';
+      document.getElementById('tourNextBtn').textContent = tourIndex === TOUR_STEPS.length - 1 ? 'Concluir' : 'Próximo →';
+      positionTourElements();
+    }
+
+    function positionTourElements() {
+      if (!tourActive) return;
+      const step = TOUR_STEPS[tourIndex];
+      const target = document.getElementById(step.targetId);
+      const spot = document.getElementById('tourSpotlight');
+      const pop = document.getElementById('tourPopover');
+
+      if (!target) {
+        spot.style.display = 'none';
+        pop.style.left = '50%'; pop.style.top = '50%'; pop.style.transform = 'translate(-50%, -50%)';
+        return;
+      }
+
+      spot.style.display = 'block';
+      const r = target.getBoundingClientRect();
+      spot.style.left = `${Math.max(4, r.left - 6)}px`;
+      spot.style.top = `${Math.max(4, r.top - 6)}px`;
+      spot.style.width = `${r.width + 12}px`;
+      spot.style.height = `${r.height + 12}px`;
+
+      let popLeft = r.right + 16, popTop = r.top;
+      if (popLeft + 350 > window.innerWidth) popLeft = Math.max(16, r.left - 356);
+      if (popLeft < 16) popLeft = 16;
+      if (popTop + 240 > window.innerHeight) popTop = window.innerHeight - 250;
+      if (popTop < 16) popTop = 16;
+
+      pop.style.transform = 'none';
+      pop.style.left = `${popLeft}px`;
+      pop.style.top = `${popTop}px`;
+    }
+
+    function nextTourStep() {
+      if (tourIndex < TOUR_STEPS.length - 1) { tourIndex++; renderTourStep(); }
+      else endTour();
+    }
+    function prevTourStep() {
+      if (tourIndex > 0) { tourIndex--; renderTourStep(); }
+    }
+    function endTour() {
+      tourActive = false;
+      document.getElementById('tourOverlay').classList.remove('active');
+      state.tutorialSeen = true; saveState();
+      showToast('Tour concluído! Pressione Ctrl+K para comandos.');
+    }
+
+    /* Modais, Dropdowns & Toasts */
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function closeAllModals() { document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open')); }
+
+    function openShortcutsModal() { closeAllDropdowns(); openModal('shortcutsBackdrop'); }
+    function dismissWelcome() { state.tutorialSeen = true; saveState(); closeModal('welcomeBackdrop'); }
+
+    function toggleDropdown(id, e) {
+      e?.stopPropagation();
+      const el = document.getElementById(id);
+      const isOpen = el.classList.contains('open');
+      closeAllDropdowns();
+      if (!isOpen) el.classList.add('open');
+    }
+    function closeAllDropdowns() { document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open')); }
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown-wrap')) closeAllDropdowns();
+    });
+
+    function showToast(msg, linkTxt, linkFn) {
+      const stack = document.getElementById('toastStack');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>${escapeHtml(msg)}</span>${linkTxt ? `<a href="javascript:void(0)" class="toast-link">${escapeHtml(linkTxt)}</a>` : ''}`;
+      if (linkTxt && linkFn) toast.querySelector('.toast-link').onclick = () => { linkFn(); toast.remove(); };
+      stack.appendChild(toast);
+      setTimeout(() => toast.remove(), 3600);
+    }
+
+    /* Atalhos Globais de Teclado */
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        const cmd = document.getElementById('cmdBackdrop');
+        if (cmd.classList.contains('open')) closeCommandPalette(); else openCommandPalette();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault(); toggleZenMode();
+      }
+      if (e.key === 'Escape') {
+        if (tourActive) endTour();
+        else { closeCommandPalette(); closeAllModals(); closeAllDropdowns(); }
+      }
+      if (state.activeView === 'review' && !document.querySelector('.modal-backdrop.open')) {
+        if (e.code === 'Space' && !cardRevealed && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          e.preventDefault(); revealCurrentCard();
+        } else if (cardRevealed) {
+          if (e.key === '1') gradeCurrentCard('again');
+          if (e.key === '2') gradeCurrentCard('hard');
+          if (e.key === '3') gradeCurrentCard('good');
+          if (e.key === '4') gradeCurrentCard('easy');
+        }
+      }
+    });
+
+    
+    /* =========================================================
+       SISTEMA DE CONTAS & SINCRONIZAÇÃO EM NUVEM (SUPABASE)
+       ========================================================= */
+    const SUPABASE_URL = 'https://iwkyfjakhghjruiwrqjm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_6hnWMdkvQCD4YxHC49mhzA_3tdNOjHC';
+
+    let supabaseClient = null;
+    try {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase initialization failed:', e);
+    }
+
+    let cloudSyncTimeout = null;
+    let isSyncingToCloud = false;
+    let currentAuthTab = 'login';
+
+    function openAuthModal() {
+      closeAllDropdowns();
+      updateAuthModalUI();
+      openModal('authModalBackdrop');
+    }
+
+    function setAuthTab(tab) {
+      currentAuthTab = tab;
+      const btnLogin = document.getElementById('tabAuthLogin');
+      const btnSignup = document.getElementById('tabAuthSignup');
+      const confirmRow = document.getElementById('authConfirmPassRow');
+      const submitBtn = document.getElementById('authSubmitBtn');
+      const errorEl = document.getElementById('authErrorMsg');
+      if (errorEl) { errorEl.textContent = ''; errorEl.style.display = 'none'; }
+
+      if (tab === 'login') {
+        btnLogin?.classList.add('active');
+        btnSignup?.classList.remove('active');
+        if (confirmRow) confirmRow.style.display = 'none';
+        if (submitBtn) submitBtn.textContent = 'Entrar na Conta';
+      } else {
+        btnLogin?.classList.remove('active');
+        btnSignup?.classList.add('active');
+        if (confirmRow) confirmRow.style.display = 'block';
+        if (submitBtn) submitBtn.textContent = 'Criar Minha Conta';
+      }
+    }
+
+    function setCloudStatus(status, text) {
+      const dot = document.getElementById('cloudDot');
+      const label = document.getElementById('cloudSyncText');
+      const sideDot = document.getElementById('sidebarSyncDot');
+      const modalStatus = document.getElementById('authAccountSyncStatus');
+
+      if (label) label.textContent = text;
+      if (modalStatus) modalStatus.textContent = '● ' + text;
+
+      let color = 'var(--text-muted)';
+      if (status === 'synced') color = 'var(--success)';
+      else if (status === 'syncing' || status === 'pending') color = 'var(--accent)';
+      else if (status === 'error') color = 'var(--danger)';
+
+      if (dot) dot.style.background = color;
+      if (sideDot) {
+        sideDot.style.background = color;
+        sideDot.style.display = currentUser ? 'inline-block' : 'none';
+      }
+    }
+
+    function updateAuthModalUI() {
+      const loggedOutView = document.getElementById('authLoggedOutView');
+      const loggedInView = document.getElementById('authLoggedInView');
+      const accountLabel = document.getElementById('sidebarAccountLabel');
+      const accountEmail = document.getElementById('authAccountEmail');
+      const avatarLetter = document.getElementById('authAvatarLetter');
+      const sideDot = document.getElementById('sidebarSyncDot');
+
+      if (currentUser) {
+        if (loggedOutView) loggedOutView.style.display = 'none';
+        if (loggedInView) loggedInView.style.display = 'block';
+        const email = currentUser.email || 'Usuário';
+        if (accountLabel) accountLabel.textContent = email.split('@')[0];
+        if (accountEmail) accountEmail.textContent = email;
+        if (avatarLetter) avatarLetter.textContent = (email[0] || 'U').toUpperCase();
+        if (sideDot) sideDot.style.display = 'inline-block';
+      } else {
+        if (loggedOutView) loggedOutView.style.display = 'block';
+        if (loggedInView) loggedInView.style.display = 'none';
+        if (accountLabel) accountLabel.textContent = 'Conta / Entrar';
+        if (sideDot) sideDot.style.display = 'none';
+        setCloudStatus('guest', 'Convidado');
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      if (!supabaseClient) {
+        alert('Erro ao carregar SDK do Supabase. Verifique sua conexão com a internet.');
+        return;
+      }
+
+      const email = document.getElementById('authEmailInput')?.value.trim();
+      const password = document.getElementById('authPasswordInput')?.value;
+      const confirm = document.getElementById('authPasswordConfirmInput')?.value;
+      const errorEl = document.getElementById('authErrorMsg');
+      const submitBtn = document.getElementById('authSubmitBtn');
+
+      if (errorEl) { errorEl.textContent = ''; errorEl.style.display = 'none'; }
+
+      if (!email || !password) {
+        if (errorEl) { errorEl.textContent = 'Preencha e-mail e senha.'; errorEl.style.display = 'block'; }
+        return;
+      }
+
+      if (currentAuthTab === 'signup' && password !== confirm) {
+        if (errorEl) { errorEl.textContent = 'As senhas digitadas não coincidem.'; errorEl.style.display = 'block'; }
+        return;
+      }
+
+      const originalBtnText = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Processando...'; }
+
+      try {
+        if (currentAuthTab === 'login') {
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          showToast('Login realizado com sucesso!');
+          closeModal('authModalBackdrop');
+          await onUserLoggedIn(data.user);
+        } else {
+          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          if (error) throw error;
+          if (data.session && data.user) {
+            showToast('Conta criada com sucesso!');
+            closeModal('authModalBackdrop');
+            await onUserLoggedIn(data.user, true);
+          } else {
+            showToast('Conta criada! Verifique seu e-mail para confirmar.');
+            if (errorEl) {
+              errorEl.textContent = 'Confirmação enviada para o seu e-mail! Após confirmar, clique na aba "Entrar".';
+              errorEl.style.color = 'var(--success)';
+              errorEl.style.display = 'block';
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Auth error:', err);
+        if (errorEl) {
+          errorEl.textContent = err.message || 'Erro na autenticação. Tente novamente.';
+          errorEl.style.color = 'var(--danger)';
+          errorEl.style.display = 'block';
+        }
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalBtnText; }
+      }
+    }
+
+    async function handleAuthLogout() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      currentUser = null;
+      updateAuthModalUI();
+      closeModal('authModalBackdrop');
+      setCloudStatus('guest', 'Convidado');
+
+      // Mudar para armazenamento de convidado
+      state = await loadStateFromDB();
+      reRenderActiveUI();
+      showToast('Desconectado. Modo Convidado ativado.');
+    }
+
+    async function onUserLoggedIn(user, isNewSignup = false) {
+      currentUser = user;
+      updateAuthModalUI();
+      setCloudStatus('syncing', 'Verificando nuvem...');
+
+      // Carregar estado do IndexedDB do usuário primeiro se existir
+      const localUserState = await loadStateFromDB();
+      if (localUserState) {
+        state = localUserState;
+        reRenderActiveUI();
+      }
+
+      await pullStateFromCloud(isNewSignup);
+    }
+
+    function scheduleCloudSync(immediate = false) {
+      if (!currentUser || !supabaseClient) return;
+      clearTimeout(cloudSyncTimeout);
+      setCloudStatus('pending', 'Alterações pendentes');
+
+      if (immediate) {
+        pushStateToCloud();
+      } else {
+        cloudSyncTimeout = setTimeout(() => {
+          pushStateToCloud();
+        }, 1500);
+      }
+    }
+
+    async function pushStateToCloud() {
+      if (!currentUser || !supabaseClient || isSyncingToCloud) return;
+      isSyncingToCloud = true;
+      setCloudStatus('syncing', 'Sincronizando...');
+
+      try {
+        const { error } = await supabaseClient
+          .from('user_workspaces')
+          .upsert({
+            user_id: currentUser.id,
+            state_json: state,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
+
+        if (error) {
+          console.warn('Erro ao salvar na nuvem:', error);
+          if (error.code === 'PGRST205' || (error.message && error.message.includes('not find'))) {
+            setCloudStatus('error', 'Tabela ausente');
+            showToast('Execute o script SQL no Supabase para ativar a tabela user_workspaces!');
+          } else {
+            setCloudStatus('error', 'Falha no sync');
+          }
+        } else {
+          setCloudStatus('synced', 'Sincronizado');
+          const elTime = document.getElementById('authLastSyncTime');
+          if (elTime) {
+            const d = new Date();
+            elTime.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+        }
+      } catch (err) {
+        console.warn('Erro na conexão de sync:', err);
+        setCloudStatus('offline', 'Offline');
+      } finally {
+        isSyncingToCloud = false;
+      }
+    }
+
+    async function pullStateFromCloud(isInitialLogin = false) {
+      if (!currentUser || !supabaseClient) return;
+      setCloudStatus('syncing', 'Baixando dados...');
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_workspaces')
+          .select('state_json, updated_at')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+
+        if (error) {
+          if (error.code === 'PGRST205' || (error.message && error.message.includes('not find'))) {
+            setCloudStatus('error', 'Tabela ausente');
+            showToast('Execute o script SQL no Supabase para ativar a tabela user_workspaces!');
+            return;
+          }
+          throw error;
+        }
+
+        if (data && data.state_json && Object.keys(data.state_json).length > 0) {
+          state = normalizeState(data.state_json);
+          saveStateLocallyOnly();
+          reRenderActiveUI();
+          setCloudStatus('synced', 'Sincronizado');
+          showToast('Estúdio sincronizado com a nuvem!');
+          if (data.updated_at) {
+            const dt = new Date(data.updated_at);
+            const elTime = document.getElementById('authLastSyncTime');
+            if (elTime) elTime.textContent = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+        } else {
+          showToast('Primeiro acesso: salvando seus dados na nuvem...');
+          await pushStateToCloud();
+        }
+      } catch (err) {
+        console.warn('Erro ao baixar dados da nuvem:', err);
+        setCloudStatus('offline', 'Offline');
+      }
+    }
+
+    function manualSyncNow() {
+      if (!currentUser) return showToast('Faça login para sincronizar.');
+      pushStateToCloud();
+      showToast('Enviando dados para a nuvem...');
+    }
+
+    function manualPullFromCloud() {
+      if (!currentUser) return showToast('Faça login para baixar dados.');
+      pullStateFromCloud(false);
+    }
+
+    function saveStateLocallyOnly() {
+      const k = getStorageKey();
+      if (idbHandle) {
+        try {
+          idbHandle.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(state, k);
+          return;
+        } catch {}
+      }
+      try { localStorage.setItem(k, JSON.stringify(state)); } catch {}
+    }
+
+    function reRenderActiveUI() {
+      setTheme(state.theme || 'dark');
+      if (state.sidebarCompact) document.getElementById('sidebar')?.classList.add('compact');
+      else document.getElementById('sidebar')?.classList.remove('compact');
+      switchView(state.activeView || 'reader');
+    }
+
+    window.addEventListener('resize', () => {
+      if (notebookMode === 'canvas') resizeCanvas();
+      if (tourActive) positionTourElements();
+    });
+
+    /* =========================================================
+       INICIALIZAÇÃO DO ESTÚDIO
+       ========================================================= */
+    (async () => {
+      // 1. Checar sessão pré-existente do Supabase
+      if (supabaseClient) {
+        try {
+          const { data } = await supabaseClient.auth.getSession();
+          if (data && data.session && data.session.user) {
+            currentUser = data.session.user;
+          }
+        } catch (e) {
+          console.warn('Erro ao verificar sessão Supabase:', e);
+        }
+      }
+
+      state = await loadStateFromDB();
+      setTheme(state.theme || 'dark');
+      if (state.sidebarCompact) document.getElementById('sidebar').classList.add('compact');
+      switchView(state.activeView || 'reader');
+      if (!state.tutorialSeen) openModal('welcomeBackdrop');
+
+      updateAuthModalUI();
+
+      if (currentUser) {
+        pullStateFromCloud(false);
+      }
+
+      // Ouvir mudanças de autenticação entre abas ou refresh
+      if (supabaseClient) {
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            if (!currentUser || currentUser.id !== session.user.id) {
+              currentUser = session.user;
+              updateAuthModalUI();
+              await pullStateFromCloud(false);
+            }
+          } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            updateAuthModalUI();
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
